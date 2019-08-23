@@ -1,21 +1,10 @@
 from __future__ import division, print_function
-import os
-import re
+import tensorflow as tf
 from tensorflow import keras as k
 import numpy as np
-import sirf.STIR as PET
+import scipy.io
 
 import network
-
-
-# https://stackoverflow.com/questions/5967500/how-to-correctly-sort-a-string-with-a-number-inside
-def atoi(string):
-    return int(string) if string.isdigit() else string
-
-
-# https://stackoverflow.com/questions/5967500/how-to-correctly-sort-a-string-with-a-number-inside
-def human_sorting(string):
-    return [atoi(c) for c in re.split(r"(\d+)", string)]
 
 
 # https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
@@ -27,92 +16,83 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def get_x(input_path, input_prefix):
+def get_x(input_path, start_position, data_window_size, window_size):
     print("Getting x")
 
     x = []
-    x_fixed = []
-    x_moving_fixed = []
 
-    relative_path = input_path + "/fixed/"
-    x_fixed_files = os.listdir(relative_path)
-    x_fixed_files.sort(key=human_sorting)
+    sinos = scipy.io.loadmat(input_path)
+    sinos_array = np.mean(sinos.get(list(sinos.keys())[3]), 3).T
 
-    print("Get x fixed")
+    for i in range(start_position, start_position + (data_window_size - window_size)):
+        x_window = []
 
-    for i in range(len(x_fixed_files)):
-        if len(x_fixed_files[i].split(input_prefix)) > 1:
-            x_fixed.append(
-                rescale_linear(
-                    PET.ImageData(relative_path + x_fixed_files[i]).as_array().squeeze(), 0, 1))
+        for j in range(window_size):
+            x_window.append(sinos_array[i + j])
 
-    print("Got x fixed")
-
-    relative_path = input_path + "/moving/"
-    x_moving_files = os.listdir(relative_path)
-    x_moving_files.sort(key=human_sorting)
-
-    print("Get x moving")
-
-    for i in range(len(x_moving_files)):
-        temp_relative_path = relative_path + x_moving_files[i] + "/"
-        x_moving_files_fixed_files = os.listdir(temp_relative_path)
-        x_moving_files_fixed_files.sort(key=human_sorting)
-        x_moving = []
-
-        for j in range(len(x_moving_files_fixed_files)):
-            if len(x_moving_files_fixed_files[j].split(input_prefix)) > 1:
-                x_moving.append(
-                    rescale_linear(
-                            PET.ImageData(
-                                temp_relative_path + x_moving_files_fixed_files[j]).as_array().squeeze(), 0, 1))
-
-        x_moving_fixed.append(x_moving)
-
-    print("Got x moving")
-
-    for i in range(len(x_moving_fixed)):
-        for j in range(len(x_moving_fixed[i])):
-            x.append(np.asarray([x_fixed[i], x_moving_fixed[i][j]]).T)
+        x.append(np.asarray(x_window).T)
 
     print("Got x")
 
-    return np.nan_to_num(np.asarray(x)).astype(np.float)
+    return np.nan_to_num(np.asarray(x))
 
 
-def get_y(input_path):
+def get_y(input_path, start_position, data_window_size, window_size):
     print("Get y")
 
     y = []
 
-    with open(input_path + "/transforms.csv", "r") as file:
-        for line in file:
-            line = line.rstrip()
-            line_tuple = line.split(",")
-            line_float = []
+    test = scipy.io.loadmat(input_path)
+    test_array = rescale_linear(test.get(list(test.keys())[3]), 0.0, 1.0)
 
-            for i in range(len(line_tuple)):
-                line_float.append(float(line_tuple[i]))
+    for i in range(start_position, start_position + (data_window_size - window_size)):
+        y_window = []
 
-            y.append(line_float)
+        for j in range(window_size):
+            y_window.append(test_array[i + j])
+
+        y.append(np.squeeze(np.asarray(y_window)))
 
     print("Got y")
 
     return np.nan_to_num(np.asarray(y))
 
 
-def fit_model(input_model, test_bool, save_bool, load_bool, apply_bool, input_path, input_prefix, output_path, epochs):
-    if test_bool:
-        print("Get random data")
+# https://stackoverflow.com/questions/43855162/rmse-rmsle-loss-function-in-keras
+def root_mean_squared_error(y_true, y_pred):
+    return k.backend.sqrt(k.backend.mean(k.backend.square(y_pred - y_true)))
 
-        # random data for now
-        x_train = np.random.rand(100, 100, 100, 2)  # 100 images, shape (100, 100), channels static & moving
-        y_train = (np.random.rand(100, 3) * 2) - 1  # 100 3-vectors
-    else:
-        print("Get training data")
 
-        x_train = get_x(input_path, input_prefix)
-        y_train = get_y(input_path)
+# https://stackoverflow.com/questions/46619869/how-to-specify-the-correlation-coefficient-as-the-loss-function-in-keras
+def correlation_coefficient_loss(y_true, y_pred):
+    x = y_true
+    y = y_pred
+    mx = k.backend.mean(x)
+    my = k.backend.mean(y)
+    xm, ym = x-mx, y-my
+    r_num = k.backend.sum(tf.multiply(xm,ym))
+    r_den = k.backend.sqrt(tf.multiply(k.backend.sum(k.backend.square(xm)), k.backend.sum(k.backend.square(ym))))
+    r = r_num / r_den
+
+    r = k.backend.maximum(k.backend.minimum(r, 1.0), -1.0)
+    return 1 - k.backend.square(r)
+
+
+def fit_model(input_model,
+              save_bool,
+              load_bool,
+              apply_bool,
+              x_input_path,
+              y_input_path,
+              start_position,
+              data_window_size,
+              window_size,
+              output_path,
+              epochs):
+    print("Get training data")
+
+    x_train = get_x(x_input_path, start_position, data_window_size, window_size)
+    y_train = get_y(y_input_path, start_position, data_window_size, window_size)
 
     if input_model is None:
         print("No input model")
@@ -126,13 +106,13 @@ def fit_model(input_model, test_bool, save_bool, load_bool, apply_bool, input_pa
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.vgg19net(input_x)
+            x = network.resvoxelmorph(input_x)
 
             x = network.output_module(x)
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Nadam(), loss=k.losses.mean_absolute_error, metrics=["accuracy"])
+            model.compile(optimizer=k.optimizers.Adam(), loss=k.losses.mean_squared_error, metrics=["accuracy"])
     else:
         print("Using input model")
 
@@ -154,7 +134,14 @@ def fit_model(input_model, test_bool, save_bool, load_bool, apply_bool, input_pa
         model.save(output_path + "/model.h5")
 
     if apply_bool:
-        test_model(model, False, input_path, input_prefix, input_path, output_path)
+        test_model(model,
+                   x_input_path,
+                   y_input_path,
+                   start_position,
+                   data_window_size,
+                   window_size,
+                   output_path,
+                   output_path)
 
     return model
 
@@ -171,18 +158,18 @@ def write_to_file(file, data):
         file.write(output_string)
 
 
-def test_model(input_model, test_bool, data_input_path, data_input_prefix, model_input_path, output_path):
-    if test_bool:
-        print("Get random data")
+def test_model(input_model,
+               x_input_path,
+               y_input_path,
+               start_position,
+               data_window_size,
+               window_size,
+               model_input_path,
+               output_path):
+    print("Get test data")
 
-        # random data for now
-        x_test = np.random.rand(100, 100, 100, 2)  # 100 images, shape (100, 100), channels static & moving
-        y_test = np.random.rand(100, 3) * 2 - 1  # 100 3-vectors
-    else:
-        print("Get test data")
-
-        x_test = get_x(data_input_path, data_input_prefix)
-        y_test = get_y(data_input_path)
+    x_test = get_x(x_input_path, start_position, data_window_size, window_size)
+    y_test = get_y(y_input_path, start_position, data_window_size, window_size)
 
     if input_model is None:
         print("No input model")
@@ -209,21 +196,31 @@ def test_model(input_model, test_bool, data_input_path, data_input_prefix, model
 
     for i in range(len(output)):
         for j in range(len(output[i])):
-            if output[i][j] - y_test[i][j] < 0.01:
+            if output[i][j] - y_test[i][j] < 0.001:
                 boolean_difference.append(np.array(0))
             else:
                 boolean_difference.append(np.array(1))
 
     absolute_difference = sum(boolean_difference)
 
-    print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * 3))
-    print("Relative boolean difference: " + str(((absolute_difference / 3.0) / len(y_test)) * 100) + "%")
+    print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * 20))
+    print("Relative boolean difference: " + str(((absolute_difference / 20.0) / len(y_test)) * 100) + "%")
 
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)
 
 
 def main(fit_model_bool, while_bool):
+    y_path = "./output_signal.mat"
+
+    data = scipy.io.loadmat(y_path)
+    data_array = data.get(list(data.keys())[3])
+
+    data_size = data_array.shape[0]
+    window_size = 20
+    epoch_size = 100
+    data_window_size = epoch_size + window_size
+    data_stride_size = data_window_size
 
     if fit_model_bool:
         while_model = None
@@ -231,23 +228,34 @@ def main(fit_model_bool, while_bool):
         while True:
             print("Fit model")
 
-            while_model = fit_model(while_model,
-                                    False,
-                                    True,
-                                    while_bool,
-                                    True,
-                                    "../training_data/",
-                                    ".nii",
-                                    "../results/",
-                                    10)
+            for i in range(0, data_size - data_window_size, data_stride_size):
+                while_model = fit_model(while_model,
+                                        True,
+                                        while_bool,
+                                        True,
+                                        "./sinos.mat",
+                                        y_path,
+                                        i,
+                                        data_window_size,
+                                        window_size,
+                                        "./results/",
+                                        epoch_size)
 
             if not while_bool:
                 break
     else:
         print("Test model")
 
-        test_model(None, False, "../training_data/", ".nii", "../results/", "../results/")
+        for i in range(data_size - data_window_size):
+            test_model(None,
+                       "./sinos.mat",
+                       y_path,
+                       i,
+                       data_window_size,
+                       window_size,
+                       "./results/",
+                       "./results/")
 
 
 if __name__ == "__main__":
-    main(True, False)
+    main(True, True)

@@ -183,7 +183,7 @@ def test_model(input_model,
 
     output = model.predict(x_test)
 
-    with open(output_path + "/output_transforms.csv", "w") as file:
+    with open(output_path + "/output_signal.csv", "w") as file:
         write_to_file(file, output)
 
     difference_matrix = output - y_test

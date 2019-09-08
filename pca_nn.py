@@ -43,7 +43,7 @@ def get_y(input_path, start_position, data_window_size, window_size):
     y = []
 
     test = scipy.io.loadmat(input_path)
-    test_array = rescale_linear(test.get(list(test.keys())[3]), 0.0, 1.0)
+    test_array = rescale_linear(test.get(list(test.keys())[3]), -1.0, 1.0)
 
     for i in range(start_position, start_position + (data_window_size - window_size)):
         y_window = []
@@ -78,6 +78,11 @@ def correlation_coefficient_loss(y_true, y_pred):
     return 1 - k.backend.square(r)
 
 
+# https://stackoverflow.com/questions/51625357/i-want-to-use-tensorflows-metricpearson-correlation-in-keras
+def tf_pearson(y_true, y_pred):
+    return tf.contrib.metrics.streaming_pearson_correlation(y_pred, y_true)[1]
+
+
 def fit_model(input_model,
               save_bool,
               load_bool,
@@ -104,15 +109,17 @@ def fit_model(input_model,
         else:
             print("Generate new model")
 
+            output_size = y_train.shape[1:][0]
+
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.resvoxelmorph(input_x)
+            x = network.resvoxelmorph_rnn(input_x, output_size)
 
-            x = network.output_module(x)
+            x = network.output_module(x, output_size)
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Adam(), loss=k.losses.mean_squared_error, metrics=["accuracy"])
+            model.compile(optimizer=k.optimizers.Adam(), loss=root_mean_squared_error, metrics=["accuracy", tf_pearson])
     else:
         print("Using input model")
 
@@ -123,6 +130,7 @@ def fit_model(input_model,
 
     print("Fitting model")
 
+    k.backend.get_session().run(tf.local_variables_initializer())
     model.fit(x_train, y_train, epochs=epochs, verbose=1)
 
     loss = model.evaluate(x_train, y_train, verbose=0)
@@ -175,7 +183,7 @@ def test_model(input_model,
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model.h5")
+        model = k.models.load_model(model_input_path + "/model.h5", root_mean_squared_error=root_mean_squared_error)
     else:
         model = input_model
 
@@ -219,8 +227,14 @@ def main(fit_model_bool, while_bool):
     data_size = data_array.shape[0]
     window_size = 20
     epoch_size = 100
-    data_window_size = epoch_size + window_size
-    data_stride_size = data_window_size
+
+    if epoch_size >= data_size:
+        epoch_size = data_size
+        data_window_size = epoch_size - 1
+        data_stride_size = 1
+    else:
+        data_window_size = epoch_size + window_size
+        data_stride_size = data_window_size
 
     if fit_model_bool:
         while_model = None
@@ -258,4 +272,4 @@ def main(fit_model_bool, while_bool):
 
 
 if __name__ == "__main__":
-    main(True, True)
+    main(True, False)

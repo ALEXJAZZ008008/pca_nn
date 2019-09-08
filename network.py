@@ -1,9 +1,9 @@
 from tensorflow import keras as k
 
 
-def output_module(x):
-    x = k.layers.Dense(units=20)(x)
-    x = k.layers.Activation("sigmoid")(x)
+def output_module(x, size):
+    x = k.layers.Dense(units=size)(x)
+    x = k.layers.Activation("tanh")(x)
 
     return x
 
@@ -25,23 +25,25 @@ def fully_connected(x):
     return x
 
 
-def deep_fully_connected(x):
+def deep_fully_connected(x, fully_connected_bool, size, output_size):
     x = k.layers.Flatten()(x)
 
-    x = k.layers.Dense(units=256)(x)
-    x = k.layers.BatchNormalization()(x)
-    x = k.layers.PReLU()(x)
-    x = k.layers.Dropout(0.5)(x)
+    for _ in range(size):
+        x = k.layers.Dense(units=256)(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
 
-    x = k.layers.Dense(units=200)(x)
-    x = k.layers.BatchNormalization()(x)
-    x = k.layers.PReLU()(x)
-    x = k.layers.Dropout(0.5)(x)
+    if fully_connected_bool:
+        x = k.layers.Dense(units=output_size * 10)(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
 
-    x = k.layers.Dense(units=20)(x)
-    x = k.layers.BatchNormalization()(x)
-    x = k.layers.PReLU()(x)
-    x = k.layers.Dropout(0.5)(x)
+        x = k.layers.Dense(units=output_size)(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
 
     return x
 
@@ -81,7 +83,7 @@ def deep_conv(x):
     return x
 
 
-def conv_fully_connected(x):
+def deep_conv_fully_connected(x, output_size):
     for _ in range(2):
         x = k.layers.Conv3D(filters=64, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="same")(x)
         x = k.layers.BatchNormalization()(x)
@@ -95,7 +97,7 @@ def conv_fully_connected(x):
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected(x)
+    x = deep_fully_connected(x, True, 2, output_size)
 
     return x
 
@@ -571,7 +573,7 @@ def alexinceptionresnet_conv(x):
     return x
 
 
-def alexinceptionresnet_fully_connected(x):
+def alexinceptionresnet_fully_connected(x, output_size):
     x = alexinceptionresnet_conv_module(x)
 
     x = k.layers.Conv3D(filters=1, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="same")(x)
@@ -579,7 +581,7 @@ def alexinceptionresnet_fully_connected(x):
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected(x)
+    x = deep_fully_connected(x, True, 2, output_size)
 
     return x
 
@@ -862,7 +864,7 @@ def voxelmorph(x):
     return x
 
 
-def resvoxelmorph(x):
+def resvoxelmorph(x, output_size):
     x = k.layers.Conv3D(filters=1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
@@ -999,7 +1001,7 @@ def resvoxelmorph(x):
     x = k.layers.PReLU()(x)
     x_shortcut = k.layers.Dropout(0.5)(x)
 
-    x = k.layers.Conv3D(filters=64, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.Conv3D(filters=64, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
@@ -1019,6 +1021,330 @@ def resvoxelmorph(x):
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected(x)
+    x = deep_fully_connected(x, True, 2, output_size)
+
+    return x
+
+
+def rnn(x, output_size):
+    x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
+
+    x = k.layers.LSTM(output_size, return_sequences=False, recurrent_dropout=0.5)(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Flatten()(x)
+
+    return x
+
+
+def deep_rnn(x, rnn_size, output_size):
+    x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
+
+    for _ in range(rnn_size):
+        x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Flatten()(x)
+
+    return x
+
+
+def deep_fully_connected_rnn(x, rnn_size, fully_connected_bool, size, output_size):
+    x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
+
+    for _ in range(rnn_size):
+        x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Flatten()(x)
+
+    x = deep_fully_connected(x, fully_connected_bool, size, output_size)
+
+    return x
+
+
+def conv_fully_connected_rnn(x, output_size):
+    x = k.layers.Conv3D(filters=64, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected_rnn(x, 2, True, 2, output_size)
+
+    return x
+
+
+def deep_conv_fully_connected_rnn(x, output_size):
+    for _ in range(2):
+        x = k.layers.Conv3D(filters=64, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+        x = k.layers.BatchNormalization()(x)
+        x = k.layers.PReLU()(x)
+        x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected_rnn(x, 2, True, 2, output_size)
+
+    return x
+
+
+def papernet_rnn(x, output_size):
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected_rnn(x, 2, True, 2, output_size)
+
+    return x
+
+
+def resnet_rnn(x, output_size):
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected_rnn(x, 2, True, 2, output_size)
+
+    return x
+
+
+def resvoxelmorph_rnn(x, output_size):
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut_1 = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x_shortcut_1)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut_2 = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x_shortcut_2)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut_3 = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x_shortcut_3)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut_4 = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x_shortcut_4)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.UpSampling3D(size=(2, 2, 2))(x)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    ch, cw, cd = get_crop_shape(x, x_shortcut_4)
+    x = k.layers.Cropping3D(cropping=(ch, cw, cd))(x)
+    x = k.layers.concatenate([x, x_shortcut_4], axis=4)
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.UpSampling3D(size=(2, 2, 2))(x)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    ch, cw, cd = get_crop_shape(x, x_shortcut_3)
+    x = k.layers.Cropping3D(cropping=(ch, cw, cd))(x)
+    x = k.layers.concatenate([x, x_shortcut_3], axis=4)
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.UpSampling3D(size=(2, 2, 2))(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    ch, cw, cd = get_crop_shape(x, x_shortcut_2)
+    x = k.layers.Cropping3D(cropping=(ch, cw, cd))(x)
+    x = k.layers.concatenate([x, x_shortcut_2], axis=4)
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.UpSampling3D(size=(2, 2, 2))(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    ch, cw, cd = get_crop_shape(x, x_shortcut_1)
+    x = k.layers.Cropping3D(cropping=(ch, cw, cd))(x)
+    x = k.layers.concatenate([x, x_shortcut_1], axis=4)
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=40, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=80, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=160, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=20, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected_rnn(x, 2, True, 2, output_size)
 
     return x

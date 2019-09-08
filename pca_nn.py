@@ -113,13 +113,13 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.resvoxelmorph_rnn(input_x, output_size)
+            x = network.resnet_rnn(input_x, output_size)
 
             x = network.output_module(x, output_size)
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Adam(), loss=root_mean_squared_error, metrics=["accuracy", tf_pearson])
+            model.compile(optimizer=k.optimizers.Adam(), loss=k.losses.mean_squared_error, metrics=["accuracy"])
     else:
         print("Using input model")
 
@@ -183,7 +183,8 @@ def test_model(input_model,
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model.h5", root_mean_squared_error=root_mean_squared_error)
+        model = k.models.load_model(model_input_path + "/model.h5",
+                                    custom_objects={'root_mean_squared_error': root_mean_squared_error})
     else:
         model = input_model
 
@@ -272,4 +273,4 @@ def main(fit_model_bool, while_bool):
 
 
 if __name__ == "__main__":
-    main(True, False)
+    main(True, True)

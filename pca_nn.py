@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow import keras as k
 import numpy as np
 import scipy.io
+from scipy import stats
 
 import network
 
@@ -16,7 +17,7 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def get_x(input_path, start_position, data_window_size, window_size):
+def get_x(input_path, start_position, data_window_size, window_size, window_stride_size):
     print("Getting x")
 
     x = []
@@ -24,7 +25,7 @@ def get_x(input_path, start_position, data_window_size, window_size):
     sinos = scipy.io.loadmat(input_path)
     sinos_array = np.mean(sinos.get(list(sinos.keys())[3]), 3).T
 
-    for i in range(start_position, start_position + (data_window_size - window_size)):
+    for i in range(start_position, start_position + (data_window_size - window_size), window_stride_size):
         x_window = []
 
         for j in range(window_size):
@@ -37,7 +38,7 @@ def get_x(input_path, start_position, data_window_size, window_size):
     return np.nan_to_num(np.asarray(x))
 
 
-def get_y(input_path, start_position, data_window_size, window_size):
+def get_y(input_path, start_position, data_window_size, window_size, window_stride_size):
     print("Get y")
 
     y = []
@@ -45,7 +46,7 @@ def get_y(input_path, start_position, data_window_size, window_size):
     test = scipy.io.loadmat(input_path)
     test_array = rescale_linear(test.get(list(test.keys())[3]), -1.0, 1.0)
 
-    for i in range(start_position, start_position + (data_window_size - window_size)):
+    for i in range(start_position, start_position + (data_window_size - window_size), window_stride_size):
         y_window = []
 
         for j in range(window_size):
@@ -96,8 +97,8 @@ def fit_model(input_model,
               epochs):
     print("Get training data")
 
-    x_train = get_x(x_input_path, start_position, data_window_size, window_size)
-    y_train = get_y(y_input_path, start_position, data_window_size, window_size)
+    x_train = get_x(x_input_path, start_position, data_window_size, window_size, 1)
+    y_train = get_y(y_input_path, start_position, data_window_size, window_size, 1)
 
     if input_model is None:
         print("No input model")
@@ -176,8 +177,8 @@ def test_model(input_model,
                output_path):
     print("Get test data")
 
-    x_test = get_x(x_input_path, start_position, data_window_size, window_size)
-    y_test = get_y(y_input_path, start_position, data_window_size, window_size)
+    x_test = get_x(x_input_path, start_position, data_window_size, window_size, window_size)
+    y_test = get_y(y_input_path, start_position, data_window_size, window_size, window_size)
 
     if input_model is None:
         print("No input model")
@@ -218,8 +219,10 @@ def test_model(input_model,
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)
 
+    return output
 
-def main(fit_model_bool, while_bool):
+
+def main(fit_model_bool, while_bool, load_bool):
     y_path = "./output_signal.mat"
 
     data = scipy.io.loadmat(y_path)
@@ -246,7 +249,7 @@ def main(fit_model_bool, while_bool):
             for i in range(0, data_size - data_window_size, data_stride_size):
                 while_model = fit_model(while_model,
                                         True,
-                                        while_bool,
+                                        load_bool,
                                         True,
                                         "./sinos.mat",
                                         y_path,
@@ -256,21 +259,31 @@ def main(fit_model_bool, while_bool):
                                         "./results/",
                                         epoch_size)
 
+            print("Done")
+
             if not while_bool:
                 break
     else:
         print("Test model")
 
-        for i in range(data_size - data_window_size):
-            test_model(None,
-                       "./sinos.mat",
-                       y_path,
-                       i,
-                       data_window_size,
-                       window_size,
-                       "./results/",
-                       "./results/")
+        output = np.empty((0, 20))
+
+        for i in range(0, data_size, data_stride_size):
+            output = np.concatenate((output, test_model(None,
+                                                        "./sinos.mat",
+                                                        y_path,
+                                                        i,
+                                                        data_window_size,
+                                                        window_size,
+                                                        "./results/",
+                                                        "./results/")))
+
+        output = stats.zscore(output.flatten())
+
+        print(str(output.size))
+
+        print("Done")
 
 
 if __name__ == "__main__":
-    main(True, True)
+    main(False, False, True)

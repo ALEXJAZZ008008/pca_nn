@@ -114,7 +114,7 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.resnet_rnn(input_x, output_size)
+            x = network.papernet_rnn(input_x, output_size)
 
             x = network.output_module(x, output_size)
 
@@ -127,7 +127,7 @@ def fit_model(input_model,
         model = input_model
 
     model.summary()
-    k.utils.plot_model(model, output_path + "model.png")
+    #k.utils.plot_model(model, output_path + "model.png")
 
     print("Fitting model")
 
@@ -229,8 +229,8 @@ def main(fit_model_bool, while_bool, load_bool):
     data_array = data.get(list(data.keys())[3])
 
     data_size = data_array.shape[0]
-    window_size = 20
-    epoch_size = 100
+    window_size = 40
+    epoch_size = 100 - window_size
 
     if epoch_size >= data_size:
         epoch_size = data_size
@@ -266,7 +266,7 @@ def main(fit_model_bool, while_bool, load_bool):
     else:
         print("Test model")
 
-        output = np.empty((0, 20))
+        output = np.empty((0, 40))
 
         for i in range(0, data_size, data_stride_size):
             output = np.concatenate((output, stats.zscore(test_model(None,
@@ -287,4 +287,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(True, False, False)

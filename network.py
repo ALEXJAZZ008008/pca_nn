@@ -1034,14 +1034,14 @@ def resvoxelmorph(x, output_size):
 def rnn(x, output_size):
     x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
 
-    x = k.layers.LSTM(output_size, return_sequences=False, recurrent_dropout=0.5)(x)
+    x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
     x = k.layers.AveragePooling1D(pool_size=2, strides=2, padding="same")(x)
 
-    x = k.layers.LSTM(output_size, return_sequences=False, recurrent_dropout=0.5)(x)
+    x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
@@ -1062,7 +1062,7 @@ def deep_rnn(x, rnn_size, output_size):
 
         x = k.layers.AveragePooling1D(pool_size=2, strides=2, padding="same")(x)
 
-    x = k.layers.LSTM(output_size, return_sequences=False, recurrent_dropout=0.5)(x)
+    x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
@@ -1083,7 +1083,7 @@ def deep_fully_connected_rnn(x, rnn_size, fully_connected_bool, size, output_siz
 
         x = k.layers.AveragePooling1D(pool_size=2, strides=2, padding="same")(x)
 
-    x = k.layers.LSTM(output_size, return_sequences=False, recurrent_dropout=0.5)(x)
+    x = k.layers.LSTM(output_size, return_sequences=True, recurrent_dropout=0.5)(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
@@ -1143,7 +1143,7 @@ def papernet_rnn(x, output_size):
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected_rnn(x, 3, True, 0, output_size)
+    x = deep_fully_connected_rnn(x, 2, True, 0, output_size)
 
     return x
 

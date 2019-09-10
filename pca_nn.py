@@ -114,7 +114,7 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.papernet_rnn(input_x, output_size)
+            x = network.resnet_rnn(input_x, output_size)
 
             x = network.output_module(x, output_size)
 
@@ -229,7 +229,7 @@ def main(fit_model_bool, while_bool, load_bool):
     data_array = data.get(list(data.keys())[3])
 
     data_size = data_array.shape[0]
-    window_size = 40
+    window_size = 20
     epoch_size = 100 - window_size
 
     if epoch_size >= data_size:

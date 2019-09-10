@@ -25,7 +25,7 @@ def get_x(input_path, start_position, data_window_size, window_size, window_stri
     sinos = scipy.io.loadmat(input_path)
     sinos_array = np.mean(sinos.get(list(sinos.keys())[3]), 3).T
 
-    for i in range(start_position, start_position + (data_window_size - window_size), window_stride_size):
+    for i in range(start_position, start_position + data_window_size, window_stride_size):
         x_window = []
 
         for j in range(window_size):
@@ -46,7 +46,7 @@ def get_y(input_path, start_position, data_window_size, window_size, window_stri
     test = scipy.io.loadmat(input_path)
     test_array = rescale_linear(test.get(list(test.keys())[3]), -1.0, 1.0)
 
-    for i in range(start_position, start_position + (data_window_size - window_size), window_stride_size):
+    for i in range(start_position, start_position + data_window_size, window_stride_size):
         y_window = []
 
         for j in range(window_size):
@@ -71,7 +71,7 @@ def correlation_coefficient_loss(y_true, y_pred):
     mx = k.backend.mean(x)
     my = k.backend.mean(y)
     xm, ym = x-mx, y-my
-    r_num = k.backend.sum(tf.multiply(xm,ym))
+    r_num = k.backend.sum(tf.multiply(xm, ym))
     r_den = k.backend.sqrt(tf.multiply(k.backend.sum(k.backend.square(xm)), k.backend.sum(k.backend.square(ym))))
     r = r_num / r_den
 
@@ -246,7 +246,7 @@ def main(fit_model_bool, while_bool, load_bool):
         while True:
             print("Fit model")
 
-            for i in range(0, data_size - data_window_size, data_stride_size):
+            for i in range(0, data_size, 1):
                 while_model = fit_model(while_model,
                                         True,
                                         load_bool,
@@ -269,21 +269,22 @@ def main(fit_model_bool, while_bool, load_bool):
         output = np.empty((0, 20))
 
         for i in range(0, data_size, data_stride_size):
-            output = np.concatenate((output, test_model(None,
-                                                        "./sinos.mat",
-                                                        y_path,
-                                                        i,
-                                                        data_window_size,
-                                                        window_size,
-                                                        "./results/",
-                                                        "./results/")))
+            output = np.concatenate((output, stats.zscore(test_model(None,
+                                                                     "./sinos.mat",
+                                                                     y_path,
+                                                                     i,
+                                                                     data_window_size,
+                                                                     window_size,
+                                                                     "./results/",
+                                                                     "./results/"))))
 
         output = stats.zscore(output.flatten())
 
-        print(str(output.size))
+        with open("./results/" + "/signal.csv", "w") as file:
+            write_to_file(file, output.reshape(output.size, 1))
 
         print("Done")
 
 
 if __name__ == "__main__":
-    main(False, False, True)
+    main(True, True, True)

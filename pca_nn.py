@@ -17,7 +17,7 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def get_x(input_path, start_position, data_window_size, window_size, window_stride_size):
+def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
     print("Getting x")
 
     x = []
@@ -25,7 +25,12 @@ def get_x(input_path, start_position, data_window_size, window_size, window_stri
     sinos = scipy.io.loadmat(input_path)
     sinos_array = np.mean(sinos.get(list(sinos.keys())[3]), 3).T
 
-    for i in range(start_position, start_position + data_window_size, window_stride_size):
+    limit = start_position + data_window_size
+
+    if limit > data_size:
+        limit = (data_size - window_size) + 1
+
+    for i in range(start_position, limit, window_stride_size):
         x_window = []
 
         for j in range(window_size):
@@ -35,10 +40,10 @@ def get_x(input_path, start_position, data_window_size, window_size, window_stri
 
     print("Got x")
 
-    return np.nan_to_num(np.asarray(x))
+    return np.nan_to_num(np.asarray(x, dtype="float32"))
 
 
-def get_y(input_path, start_position, data_window_size, window_size, window_stride_size):
+def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
     print("Get y")
 
     y = []
@@ -46,7 +51,12 @@ def get_y(input_path, start_position, data_window_size, window_size, window_stri
     test = scipy.io.loadmat(input_path)
     test_array = rescale_linear(test.get(list(test.keys())[3]), -1.0, 1.0)
 
-    for i in range(start_position, start_position + data_window_size, window_stride_size):
+    limit = start_position + data_window_size
+
+    if limit > data_size:
+        limit = (data_size - window_size) + 1
+
+    for i in range(start_position, limit, window_stride_size):
         y_window = []
 
         for j in range(window_size):
@@ -56,7 +66,7 @@ def get_y(input_path, start_position, data_window_size, window_size, window_stri
 
     print("Got y")
 
-    return np.nan_to_num(np.asarray(y))
+    return np.nan_to_num(np.asarray(y, dtype="float16"))
 
 
 # https://stackoverflow.com/questions/43855162/rmse-rmsle-loss-function-in-keras
@@ -93,12 +103,14 @@ def fit_model(input_model,
               start_position,
               data_window_size,
               window_size,
+              data_size,
+              window_stride_size,
               output_path,
               epochs):
     print("Get training data")
 
-    x_train = get_x(x_input_path, start_position, data_window_size, window_size, 1)
-    y_train = get_y(y_input_path, start_position, data_window_size, window_size, 1)
+    x_train = get_x(x_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
+    y_train = get_y(y_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
 
     if input_model is None:
         print("No input model")
@@ -120,19 +132,38 @@ def fit_model(input_model,
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Adam(), loss=k.losses.mean_squared_error, metrics=["accuracy"])
+            model.compile(optimizer=k.optimizers.SGD(), loss=k.losses.mean_squared_error, metrics=["accuracy"])
     else:
         print("Using input model")
 
         model = input_model
 
     model.summary()
-    #k.utils.plot_model(model, output_path + "model.png")
+    # k.utils.plot_model(model, output_path + "model.png")
 
     print("Fitting model")
 
     k.backend.get_session().run(tf.local_variables_initializer())
-    model.fit(x_train, y_train, epochs=epochs, verbose=1)
+
+    y_train_len = len(y_train)
+    batch_size = int(y_train_len / 4)
+
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
+
+    # construct the training image generator for data augmentation
+    # aug = k.preprocessing.image.ImageDataGenerator(rotation_range=20,
+    #                                               zoom_range=0.15,
+    #                                               width_shift_range=0.2,
+    #                                               height_shift_range=0.2,
+    #                                               shear_range=0.15,
+    #                                               horizontal_flip=True,
+    #                                               fill_mode="nearest")
+
+    # train the network
+    # model.fit_generator(aug.flow(x_train, y_train, batch_size=batch_size),
+    #                    validation_data=(x_train, y_train),
+    #                    steps_per_epoch=y_train_len // batch_size,
+    #                    epochs=epochs)
 
     loss = model.evaluate(x_train, y_train, verbose=0)
     print("Train loss:", loss)
@@ -149,6 +180,8 @@ def fit_model(input_model,
                    start_position,
                    data_window_size,
                    window_size,
+                   data_size,
+                   window_stride_size,
                    output_path,
                    output_path)
 
@@ -173,19 +206,20 @@ def test_model(input_model,
                start_position,
                data_window_size,
                window_size,
+               data_size,
+               window_stride_size,
                model_input_path,
                output_path):
     print("Get test data")
 
-    x_test = get_x(x_input_path, start_position, data_window_size, window_size, window_size)
-    y_test = get_y(y_input_path, start_position, data_window_size, window_size, window_size)
+    x_test = get_x(x_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
+    y_test = get_y(y_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
 
     if input_model is None:
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model.h5",
-                                    custom_objects={'root_mean_squared_error': root_mean_squared_error})
+        model = k.models.load_model(model_input_path + "/model.h5")
     else:
         model = input_model
 
@@ -206,15 +240,16 @@ def test_model(input_model,
 
     for i in range(len(output)):
         for j in range(len(output[i])):
-            if output[i][j] - y_test[i][j] < 0.001:
+            if output[i][j] - y_test[i][j] < 2.0 / 100.0:
                 boolean_difference.append(np.array(0))
             else:
                 boolean_difference.append(np.array(1))
 
     absolute_difference = sum(boolean_difference)
 
-    print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * 20))
-    print("Relative boolean difference: " + str(((absolute_difference / 20.0) / len(y_test)) * 100) + "%")
+    print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * window_size))
+    print("Relative boolean difference: " + str(((float(absolute_difference) / float(window_size)) / float(len(y_test)))
+                                                * float(100)) + "%")
 
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)
@@ -223,13 +258,22 @@ def test_model(input_model,
 
 
 def main(fit_model_bool, while_bool, load_bool):
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
+
+    k.backend.set_session(sess)
+
+    k.backend.set_floatx("float16")
+
     y_path = "./output_signal.mat"
 
     data = scipy.io.loadmat(y_path)
     data_array = data.get(list(data.keys())[3])
 
     data_size = data_array.shape[0]
-    window_size = 20
+    window_size = 40
+    window_stride_size = 1
     epoch_size = 100 - window_size
 
     if epoch_size >= data_size:
@@ -256,6 +300,8 @@ def main(fit_model_bool, while_bool, load_bool):
                                         i,
                                         data_window_size,
                                         window_size,
+                                        data_size,
+                                        window_stride_size,
                                         "./results/",
                                         epoch_size)
 
@@ -265,20 +311,43 @@ def main(fit_model_bool, while_bool, load_bool):
                 break
     else:
         print("Test model")
+        print("Load model from file")
 
-        output = np.empty((0, 40))
+        model = k.models.load_model("./results/" + "/model.h5")
+
+        output_list = []
 
         for i in range(0, data_size, data_stride_size):
-            output = np.concatenate((output, stats.zscore(test_model(None,
-                                                                     "./sinos.mat",
-                                                                     y_path,
-                                                                     i,
-                                                                     data_window_size,
-                                                                     window_size,
-                                                                     "./results/",
-                                                                     "./results/"))))
+            current_output = test_model(model,
+                                        "./sinos.mat",
+                                        y_path,
+                                        i,
+                                        data_window_size,
+                                        window_size,
+                                        data_size,
+                                        window_stride_size,
+                                        "./results/",
+                                        "./results/")
 
-        output = stats.zscore(output.flatten())
+            for j in range(len(current_output)):
+                current_output[j] = stats.zscore(current_output[j])
+
+            current_output_list = current_output.tolist()
+
+            for j in range(len(current_output_list)):
+                for l in range(j):
+                    current_output_list[j].insert(0, np.nan)
+
+                for l in range(i):
+                    current_output_list[j].insert(0, np.nan)
+
+                for l in range(len(current_output_list[j]), data_size):
+                    current_output_list[j].append(np.nan)
+
+                output_list.append(current_output_list[j])
+
+        output = np.nanmean(np.asarray(output_list), axis=0)
+        output = stats.zscore(output)
 
         with open("./results/" + "/signal.csv", "w") as file:
             write_to_file(file, output.reshape(output.size, 1))
@@ -287,4 +356,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, False, False)
+    main(True, True, True)

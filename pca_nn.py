@@ -348,7 +348,7 @@ def main(fit_model_bool, while_bool, load_bool):
                 data_size = data_array.shape[0]
                 window_stride_size = 1
                 data_window_size = 100 - window_size
-                epoch_size = 1
+                epoch_size = 1000
 
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
@@ -429,4 +429,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, False, False)
+    main(True, True, True)

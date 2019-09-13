@@ -156,7 +156,9 @@ def fit_model(input_model,
               data_size,
               window_stride_size,
               output_path,
-              epochs):
+              epochs,
+              lr,
+              lr_factor):
     print("Get training data")
 
     x_train = get_x(x_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
@@ -182,7 +184,7 @@ def fit_model(input_model,
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.SGD(lr=0.01),
+            model.compile(optimizer=k.optimizers.SGD(lr=lr),
                           loss=k.losses.mean_squared_error,
                           metrics=["mean_absolute_error"])
     else:
@@ -209,8 +211,7 @@ def fit_model(input_model,
         patience = 1
 
     reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
-                                              factor=0.01,
-                                              min_lr=0.001,
+                                              factor=lr_factor,
                                               patience=patience,
                                               mode=min,
                                               cooldown=1,
@@ -351,21 +352,24 @@ def main(fit_model_bool, while_bool, load_bool):
     rescale(y_path_orig_list, y_path_list)
 
     window_size = 40
+    window_stride_size = 1
+    data_window_size = 100
+    data_window_stride_size = 1
 
     if fit_model_bool:
         while_model = None
 
+        epoch_size = 1000
+
+        lr = 1.0
+        lr_factor = 0.9
+
         while True:
-            print("Fit model")
+            print("Fit model, lr: " + str(lr))
 
             for i in range(len(x_path_list)):
                 data_array = np.load(y_path_list[i])
-
                 data_size = data_array.shape[0]
-                window_stride_size = 1
-                data_window_size = 100
-                data_window_stride_size = 1
-                epoch_size = 1000
 
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
@@ -383,7 +387,11 @@ def main(fit_model_bool, while_bool, load_bool):
                                             data_size,
                                             window_stride_size,
                                             "./results/",
-                                            epoch_size)
+                                            epoch_size,
+                                            lr,
+                                            lr_factor)
+
+            lr = lr * lr_factor
 
             print("Done")
 
@@ -397,11 +405,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
         for i in range(len(x_path_list)):
             data_array = np.load(y_path_list[i])
-
             data_size = data_array.shape[0]
-            window_stride_size = 1
-            data_window_size = 100
-            data_window_stride_size = 1
 
             if data_window_size >= data_size:
                 data_window_size = data_size - 1

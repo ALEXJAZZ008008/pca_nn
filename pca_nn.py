@@ -347,13 +347,14 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 data_size = data_array.shape[0]
                 window_stride_size = 1
-                data_window_size = 100 - window_size
+                data_window_size = 100
+                data_window_stride_size = 1
                 epoch_size = 1000
 
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
 
-                for j in range(0, data_size, 1):
+                for j in range(0, data_size, data_window_stride_size):
                     while_model = fit_model(while_model,
                                             True,
                                             load_bool,
@@ -383,14 +384,15 @@ def main(fit_model_bool, while_bool, load_bool):
 
             data_size = data_array.shape[0]
             window_stride_size = 1
-            data_window_size = 100 - window_size
+            data_window_size = 100
+            data_window_stride_size = 1
 
             if data_window_size >= data_size:
                 data_window_size = data_size - 1
 
             output_list = []
 
-            for j in range(0, data_size, data_window_size):
+            for j in range(0, data_size, data_window_stride_size):
                 current_output = test_model(model,
                                             x_path_list[i],
                                             y_path_list[i],
@@ -408,10 +410,10 @@ def main(fit_model_bool, while_bool, load_bool):
                 current_output_list = current_output.tolist()
 
                 for l in range(len(current_output_list)):
-                    for p in range(j):
+                    for p in range(0, l, window_stride_size):
                         current_output_list[l].insert(0, np.nan)
 
-                    for p in range(l):
+                    for p in range(j):
                         current_output_list[l].insert(0, np.nan)
 
                     for p in range(len(current_output_list[l]), data_size):

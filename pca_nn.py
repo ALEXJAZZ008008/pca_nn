@@ -203,25 +203,7 @@ def fit_model(input_model,
     if batch_size <= 0:
         batch_size = 1
 
-    patience = 1
-
-    if epochs <= 10:
-        patience = 1
-    else:
-        if epochs <= 100:
-            patience = epochs / 10
-        else:
-            if epochs <= 1000:
-                patience = epochs / 100
-            else:
-                if epochs <= 10000:
-                    patience = epochs / 1000
-                else:
-                    if epochs <= 100000:
-                        patience = epochs / 10000
-                    else:
-                        if epochs <= 1000000:
-                            patience = epochs / 100000
+    patience = epochs / 10
 
     if patience <= 0:
         patience = 1

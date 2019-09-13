@@ -182,7 +182,7 @@ def fit_model(input_model,
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Adadelta(),
+            model.compile(optimizer=k.optimizers.SGD(lr=0.01),
                           loss=k.losses.mean_squared_error,
                           metrics=["mean_absolute_error"])
     else:
@@ -200,7 +200,40 @@ def fit_model(input_model,
     y_train_len = len(y_train)
     batch_size = int(y_train_len / 4)
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
+    if batch_size <= 0:
+        batch_size = 1
+
+    patience = 1
+
+    if epochs <= 10:
+        patience = 1
+    else:
+        if epochs <= 100:
+            patience = epochs / 10
+        else:
+            if epochs <= 1000:
+                patience = epochs / 100
+            else:
+                if epochs <= 10000:
+                    patience = epochs / 1000
+                else:
+                    if epochs <= 100000:
+                        patience = epochs / 10000
+                    else:
+                        if epochs <= 1000000:
+                            patience = epochs / 100000
+
+    if patience <= 0:
+        patience = 1
+
+    reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
+                                              factor=0.01,
+                                              patience=patience,
+                                              mode=min,
+                                              cooldown=1,
+                                              verbose=1)
+
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, callbacks=[reduce_lr])
 
     loss = model.evaluate(x_train, y_train, verbose=0)
     print("Train loss:", loss)
@@ -410,7 +443,7 @@ def main(fit_model_bool, while_bool, load_bool):
                 current_output_list = current_output.tolist()
 
                 for l in range(len(current_output_list)):
-                    for p in range(0, l, window_stride_size):
+                    for p in range(l * window_stride_size):
                         current_output_list[l].insert(0, np.nan)
 
                     for p in range(j):

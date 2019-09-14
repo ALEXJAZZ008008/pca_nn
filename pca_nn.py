@@ -192,6 +192,10 @@ def fit_model(input_model,
 
         model = input_model
 
+    print("lr: " + str(lr))
+
+    tf.compat.v1.keras.backend.set_value(model.optimizer.lr, lr)
+
     model.summary()
     k.utils.plot_model(model, output_path + "model.png")
 
@@ -205,7 +209,7 @@ def fit_model(input_model,
     if batch_size <= 0:
         batch_size = 1
 
-    patience = epochs / 10
+    patience = int(epochs / 11)
 
     if patience <= 0:
         patience = 1
@@ -217,9 +221,10 @@ def fit_model(input_model,
                                               cooldown=1,
                                               verbose=1)
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, callbacks=[reduce_lr])
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
 
-    loss = model.evaluate(x_train, y_train, verbose=0)
+    loss = model.evaluate(x_train, y_train, verbose=1)
+
     print("Train loss:", loss)
 
     if save_bool:

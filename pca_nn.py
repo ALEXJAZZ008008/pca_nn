@@ -192,9 +192,9 @@ def fit_model(input_model,
 
         model = input_model
 
-    print("lr: " + str(lr))
-
     tf.compat.v1.keras.backend.set_value(model.optimizer.lr, lr)
+
+    print("lr: " + str(k.backend.eval(model.optimizer.lr)))
 
     model.summary()
     k.utils.plot_model(model, output_path + "model.png")
@@ -217,15 +217,22 @@ def fit_model(input_model,
     reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
                                               factor=lr_factor,
                                               patience=patience,
-                                              mode=min,
                                               cooldown=1,
                                               verbose=1)
 
+    loss = []
+
+    loss.append(model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1))
+
+    print("Metrics: ", model.metrics_names)
+    print("Train loss:", loss[0])
+
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
 
-    loss = model.evaluate(x_train, y_train, verbose=1)
+    loss.append(model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1))
 
-    print("Train loss:", loss)
+    print("Metrics: ", model.metrics_names)
+    print("Train loss:", loss[1])
 
     if save_bool:
         print("Saving model")
@@ -244,7 +251,7 @@ def fit_model(input_model,
                    output_path,
                    output_path)
 
-    return model
+    return model, loss
 
 
 def write_to_file(file, data):
@@ -380,23 +387,35 @@ def main(fit_model_bool, while_bool, load_bool):
                     data_window_size = data_size - 1
 
                 for j in range(0, data_size, data_window_stride_size):
-                    while_model = fit_model(while_model,
-                                            True,
-                                            load_bool,
-                                            True,
-                                            x_path_list[i],
-                                            y_path_list[i],
-                                            j,
-                                            data_window_size,
-                                            window_size,
-                                            data_size,
-                                            window_stride_size,
-                                            "./results/",
-                                            epoch_size,
-                                            lr,
-                                            lr_factor)
+                    while_model, loss = fit_model(while_model,
+                                                  True,
+                                                  load_bool,
+                                                  True,
+                                                  x_path_list[i],
+                                                  y_path_list[i],
+                                                  j,
+                                                  data_window_size,
+                                                  window_size,
+                                                  data_size,
+                                                  window_stride_size,
+                                                  "./results/",
+                                                  epoch_size,
+                                                  lr,
+                                                  lr_factor)
 
-            lr = lr * lr_factor
+                    loss_gradient_percentage = (loss[1][0] / loss[0][0]) * 100
+
+                    print("Loss gradient percentage: " + str(loss_gradient_percentage))
+
+                    if loss_gradient_percentage >= 105:
+                        lr = lr * (1.0 + (1.0 - lr_factor))
+
+                        print("lr increased: " + str(lr))
+                    else:
+                        if 105 > loss_gradient_percentage >= 95:
+                            lr = lr * lr_factor
+
+                            print("lr decreased: " + str(lr))
 
             print("Done")
 

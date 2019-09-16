@@ -147,6 +147,7 @@ def tf_pearson(y_true, y_pred):
 def fit_model(input_model,
               save_bool,
               load_bool,
+              plot_bool,
               apply_bool,
               x_input_path,
               y_input_path,
@@ -197,7 +198,9 @@ def fit_model(input_model,
     print("lr: " + str(k.backend.eval(model.optimizer.lr)))
 
     model.summary()
-    k.utils.plot_model(model, output_path + "model.png")
+
+    if plot_bool:
+        k.utils.plot_model(model, output_path + "model.png")
 
     print("Fitting model")
 
@@ -218,21 +221,19 @@ def fit_model(input_model,
                                               factor=lr_factor,
                                               patience=patience,
                                               cooldown=1,
-                                              verbose=1)
+                                              verbose=0)
 
-    loss = []
-
-    loss.append(model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1))
+    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
 
     print("Metrics: ", model.metrics_names)
     print("Train loss:", loss[0])
 
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
 
-    loss.append(model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1))
+    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
 
     print("Metrics: ", model.metrics_names)
-    print("Train loss:", loss[1])
+    print("Train loss:", loss)
 
     if save_bool:
         print("Saving model")
@@ -251,7 +252,7 @@ def fit_model(input_model,
                    output_path,
                    output_path)
 
-    return model, loss
+    return model, k.backend.eval(model.optimizer.lr)
 
 
 def write_to_file(file, data):
@@ -377,9 +378,11 @@ def main(fit_model_bool, while_bool, load_bool):
         lr_factor = 0.9
 
         while True:
-            print("Fit model, lr: " + str(lr))
+            path_length = range(len(x_path_list))
 
-            for i in range(len(x_path_list)):
+            for i in path_length:
+                print("Path: " + str(i) + "/" + str(path_length))
+
                 data_array = np.load(y_path_list[i])
                 data_size = data_array.shape[0]
 
@@ -387,35 +390,24 @@ def main(fit_model_bool, while_bool, load_bool):
                     data_window_size = data_size - 1
 
                 for j in range(0, data_size, data_window_stride_size):
-                    while_model, loss = fit_model(while_model,
-                                                  True,
-                                                  load_bool,
-                                                  True,
-                                                  x_path_list[i],
-                                                  y_path_list[i],
-                                                  j,
-                                                  data_window_size,
-                                                  window_size,
-                                                  data_size,
-                                                  window_stride_size,
-                                                  "./results/",
-                                                  epoch_size,
-                                                  lr,
-                                                  lr_factor)
+                    print("Path: " + str(j) + "/" + str(data_size))
 
-                    loss_gradient_percentage = (loss[1][0] / loss[0][0]) * 100
-
-                    print("Loss gradient percentage: " + str(loss_gradient_percentage))
-
-                    if loss_gradient_percentage >= 105:
-                        lr = lr * (1.0 + (1.0 - lr_factor))
-
-                        print("lr increased: " + str(lr))
-                    else:
-                        if 105 > loss_gradient_percentage >= 95:
-                            lr = lr * lr_factor
-
-                            print("lr decreased: " + str(lr))
+                    while_model, lr = fit_model(while_model,
+                                                True,
+                                                load_bool,
+                                                False,
+                                                True,
+                                                x_path_list[i],
+                                                y_path_list[i],
+                                                j,
+                                                data_window_size,
+                                                window_size,
+                                                data_size,
+                                                window_stride_size,
+                                                "./results/",
+                                                epoch_size,
+                                                lr,
+                                                lr_factor)
 
             print("Done")
 
@@ -426,8 +418,12 @@ def main(fit_model_bool, while_bool, load_bool):
         print("Load model from file")
 
         model = k.models.load_model("./results/" + "/model.h5")
+        
+        path_length = range(len(x_path_list))
+        
+        for i in path_length:
+            print("Path: " + str(i) + "/" + str(path_length))
 
-        for i in range(len(x_path_list)):
             data_array = np.load(y_path_list[i])
             data_size = data_array.shape[0]
 
@@ -437,6 +433,8 @@ def main(fit_model_bool, while_bool, load_bool):
             output_list = []
 
             for j in range(0, data_size, data_window_stride_size):
+                print("Path: " + str(j) + "/" + str(data_size))
+
                 current_output = test_model(model,
                                             x_path_list[i],
                                             y_path_list[i],
@@ -475,4 +473,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(False, False, True)

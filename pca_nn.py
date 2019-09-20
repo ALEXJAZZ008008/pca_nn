@@ -76,12 +76,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     sinos_array = np.load(input_path)
 
-    limit = start_position + data_window_size
-
-    if limit > data_size:
-        limit = (data_size - window_size) + 1
-
-    for i in range(start_position, limit, window_stride_size):
+    for i in range(start_position, start_position + data_window_size, window_stride_size):
         x_window = []
 
         for j in range(window_size):
@@ -101,12 +96,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     test_array = np.load(input_path)
 
-    limit = start_position + data_window_size
-
-    if limit > data_size:
-        limit = (data_size - window_size) + 1
-
-    for i in range(start_position, limit, window_stride_size):
+    for i in range(start_position, start_position + data_window_size, window_stride_size):
         y_window = []
 
         for j in range(window_size):
@@ -366,8 +356,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
     window_size = 40
     window_stride_size = 1
-    data_window_size = 100
-    data_window_stride_size = 1
+    data_window_size = 100 - window_size
+    data_window_stride_size = data_window_size
 
     if fit_model_bool:
         while_model = None
@@ -378,9 +368,9 @@ def main(fit_model_bool, while_bool, load_bool):
         lr_factor = 0.9
 
         while True:
-            path_length = range(len(x_path_list))
+            path_length = len(x_path_list)
 
-            for i in path_length:
+            for i in range(path_length):
                 print("Path: " + str(i) + "/" + str(path_length))
 
                 data_array = np.load(y_path_list[i])
@@ -389,8 +379,10 @@ def main(fit_model_bool, while_bool, load_bool):
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
 
-                for j in range(0, data_size, data_window_stride_size):
-                    print("Path: " + str(j) + "/" + str(data_size))
+                limit = data_size - (data_window_size + window_size)
+
+                for j in range(0, limit, data_window_stride_size):
+                    print("Data: " + str(j) + "/" + str(limit))
 
                     while_model, lr = fit_model(while_model,
                                                 True,
@@ -419,9 +411,9 @@ def main(fit_model_bool, while_bool, load_bool):
 
         model = k.models.load_model("./results/" + "/model.h5")
         
-        path_length = range(len(x_path_list))
+        path_length = len(x_path_list)
         
-        for i in path_length:
+        for i in range(path_length):
             print("Path: " + str(i) + "/" + str(path_length))
 
             data_array = np.load(y_path_list[i])
@@ -432,8 +424,10 @@ def main(fit_model_bool, while_bool, load_bool):
 
             output_list = []
 
-            for j in range(0, data_size, data_window_stride_size):
-                print("Path: " + str(j) + "/" + str(data_size))
+            limit = data_size - (data_window_size + window_size)
+
+            for j in range(0, limit, data_window_stride_size):
+                print("Data: " + str(j) + "/" + str(limit))
 
                 current_output = test_model(model,
                                             x_path_list[i],
@@ -473,4 +467,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(False, False, True)
+    main(True, False, False)

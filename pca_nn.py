@@ -226,14 +226,14 @@ def fit_model(input_model,
     loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
 
     print("Metrics: ", model.metrics_names)
-    print("Train loss:", loss[0])
+    print("Train loss, acc:", loss)
 
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
 
     loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
 
     print("Metrics: ", model.metrics_names)
-    print("Train loss:", loss)
+    print("Train loss, acc:", loss)
 
     if save_bool:
         print("Saving model")

@@ -148,14 +148,14 @@ def lenet(x):
 
 
 def alexnet_module(x):
-    x = k.layers.Conv3D(filters=48, kernel_size=(11, 11), strides=(4, 4, 4), padding="valid")(x)
+    x = k.layers.Conv3D(filters=48, kernel_size=(1, 1, 1), strides=(4, 4, 4), padding="valid")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
     x = k.layers.MaxPooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="valid")(x)
 
-    x = k.layers.Conv3D(filters=128, kernel_size=(11, 11), strides=(1, 1, 1), padding="valid")(x)
+    x = k.layers.Conv3D(filters=128, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="valid")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)

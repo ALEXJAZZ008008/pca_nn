@@ -215,7 +215,7 @@ def fit_model(input_model,
     patience = int(epochs / 11)
 
     if patience <= 0:
-        patience = 1
+        patience = 2
 
     reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
                                               factor=lr_factor,

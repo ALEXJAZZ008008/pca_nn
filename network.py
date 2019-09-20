@@ -464,6 +464,77 @@ def resnet(x):
     return x
 
 
+def simple_resnet(x, output_size):
+    x = k.layers.Conv3D(filters=output_size, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=output_size, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=output_size * 2, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=output_size * 2, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=output_size * 3, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=output_size * 3, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=output_size * 4, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x_shortcut = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Conv3D(filters=output_size * 4, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding='same')(x_shortcut)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Add()([x, x_shortcut])
+    x = k.layers.PReLU()(x)
+
+    x = k.layers.AveragePooling3D(pool_size=(2, 2, 2), strides=(2, 2, 2), padding="same")(x)
+
+    x = k.layers.Conv3D(filters=output_size, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.BatchNormalization()(x)
+    x = k.layers.PReLU()(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = deep_fully_connected(x, True, 0, output_size)
+
+    return x
+
+
 def alexinceptionresnet_module_module_bottleneck(x, conv_filter_bottleneck):
     x = k.layers.Conv3D(filters=conv_filter_bottleneck, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
     x = k.layers.BatchNormalization()(x)

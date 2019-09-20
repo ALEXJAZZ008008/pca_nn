@@ -530,7 +530,7 @@ def simple_resnet(x, output_size):
     x = k.layers.PReLU()(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected(x, True, 0, output_size)
+    x = deep_fully_connected(x, True, 2, output_size)
 
     return x
 

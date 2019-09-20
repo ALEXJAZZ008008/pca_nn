@@ -209,6 +209,7 @@ def fit_model(input_model,
 
     reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
                                               factor=lr_factor,
+                                              min_delta=0.0001,
                                               patience=patience,
                                               cooldown=1,
                                               verbose=0)

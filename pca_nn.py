@@ -70,6 +70,13 @@ def get_y_mat(input_path, start_position, data_window_size, window_size, data_si
 
 
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
+    out_of_bounds_bool = False
+
+    if start_position + data_window_size + window_size > data_size:
+        start_position = data_size - data_window_size
+
+        out_of_bounds_bool = True
+
     print("Getting x")
 
     x = []
@@ -86,10 +93,17 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got x")
 
-    return np.nan_to_num(np.asfarray(x, dtype="float16"))
+    return np.nan_to_num(np.asfarray(x, dtype="float16")), start_position, out_of_bounds_bool
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
+    out_of_bounds_bool = False
+
+    if start_position + data_window_size + window_size > data_size:
+        start_position = data_size - data_window_size
+
+        out_of_bounds_bool = True
+
     print("Get y")
 
     y = []
@@ -106,7 +120,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y, dtype="float16"))
+    return np.nan_to_num(np.asfarray(y, dtype="float16")), start_position, out_of_bounds_bool
 
 
 # https://stackoverflow.com/questions/43855162/rmse-rmsle-loss-function-in-keras
@@ -152,8 +166,18 @@ def fit_model(input_model,
               lr_factor):
     print("Get training data")
 
-    x_train = get_x(x_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
-    y_train = get_y(y_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
+    x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
+                                                        start_position,
+                                                        data_window_size,
+                                                        window_size,
+                                                        data_size,
+                                                        window_stride_size)
+    y_train, none, none = get_y(y_input_path,
+                                start_position,
+                                data_window_size,
+                                window_size,
+                                data_size,
+                                window_stride_size)
 
     if input_model is None:
         print("No input model")
@@ -243,7 +267,7 @@ def fit_model(input_model,
                    output_path,
                    output_path)
 
-    return model, k.backend.eval(model.optimizer.lr)
+    return model, k.backend.eval(model.optimizer.lr), start_position, out_of_bounds_bool
 
 
 def write_to_file(file, data):
@@ -270,8 +294,18 @@ def test_model(input_model,
                output_path):
     print("Get test data")
 
-    x_test = get_x(x_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
-    y_test = get_y(y_input_path, start_position, data_window_size, window_size, data_size, window_stride_size)
+    x_test, start_position, out_of_bounds_bool = get_x(x_input_path,
+                                                       start_position,
+                                                       data_window_size,
+                                                       window_size,
+                                                       data_size,
+                                                       window_stride_size)
+    y_test, none, none = get_y(y_input_path,
+                               start_position,
+                               data_window_size,
+                               window_size,
+                               data_size,
+                               window_stride_size)
 
     if input_model is None:
         print("No input model")
@@ -312,7 +346,7 @@ def test_model(input_model,
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)
 
-    return output
+    return output, start_position, out_of_bounds_bool
 
 
 def standardise(input_path, output_path):
@@ -356,11 +390,12 @@ def main(fit_model_bool, while_bool, load_bool):
     rescale(y_path_orig_list, y_path_list)
 
     window_size = 40
-    window_stride_size = 1
-    data_window_size = 100 - window_size
-    data_window_stride_size = data_window_size
+    data_window_size = window_size * 4
+    data_window_stride_size = data_window_size - window_size
 
     if fit_model_bool:
+        window_stride_size = 1
+
         while_model = None
 
         epoch_size = 1000
@@ -380,33 +415,36 @@ def main(fit_model_bool, while_bool, load_bool):
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
 
-                limit = data_size - (data_window_size + window_size)
+                for j in range(0, data_size, data_window_stride_size):
+                    print("Data: " + str(j) + "/" + str(data_size))
 
-                for j in range(0, limit, data_window_stride_size):
-                    print("Data: " + str(j) + "/" + str(limit))
+                    while_model, lr, start_position, out_of_bounds_bool = fit_model(while_model,
+                                                                                    True,
+                                                                                    load_bool,
+                                                                                    False,
+                                                                                    True,
+                                                                                    x_path_list[i],
+                                                                                    y_path_list[i],
+                                                                                    j,
+                                                                                    data_window_size,
+                                                                                    window_size,
+                                                                                    data_size,
+                                                                                    window_stride_size,
+                                                                                    "./results/",
+                                                                                    epoch_size,
+                                                                                    lr,
+                                                                                    lr_factor)
 
-                    while_model, lr = fit_model(while_model,
-                                                True,
-                                                load_bool,
-                                                False,
-                                                True,
-                                                x_path_list[i],
-                                                y_path_list[i],
-                                                j,
-                                                data_window_size,
-                                                window_size,
-                                                data_size,
-                                                window_stride_size,
-                                                "./results/",
-                                                epoch_size,
-                                                lr,
-                                                lr_factor)
+                    if out_of_bounds_bool:
+                        break
 
             print("Done")
 
             if not while_bool:
                 break
     else:
+        window_stride_size = window_size
+
         print("Test model")
         print("Load model from file")
 
@@ -425,21 +463,19 @@ def main(fit_model_bool, while_bool, load_bool):
 
             output_list = []
 
-            limit = data_size - (data_window_size + window_size)
+            for j in range(0, data_size, data_window_stride_size):
+                print("Data: " + str(j) + "/" + str(data_size))
 
-            for j in range(0, limit, data_window_stride_size):
-                print("Data: " + str(j) + "/" + str(limit))
-
-                current_output = test_model(model,
-                                            x_path_list[i],
-                                            y_path_list[i],
-                                            j,
-                                            data_window_size,
-                                            window_size,
-                                            data_size,
-                                            window_stride_size,
-                                            "./results/",
-                                            "./results/")
+                current_output, start_position, out_of_bounds_bool = test_model(model,
+                                                                                x_path_list[i],
+                                                                                y_path_list[i],
+                                                                                j,
+                                                                                data_window_size,
+                                                                                window_size,
+                                                                                data_size,
+                                                                                window_stride_size,
+                                                                                "./results/",
+                                                                                "./results/")
 
                 for l in range(len(current_output)):
                     current_output[l] = stats.zscore(current_output[l])
@@ -450,13 +486,16 @@ def main(fit_model_bool, while_bool, load_bool):
                     for p in range(l * window_stride_size):
                         current_output_list[l].insert(0, np.nan)
 
-                    for p in range(j):
+                    for p in range(start_position):
                         current_output_list[l].insert(0, np.nan)
 
                     for p in range(len(current_output_list[l]), data_size):
                         current_output_list[l].append(np.nan)
 
                     output_list.append(current_output_list[l])
+
+                if out_of_bounds_bool:
+                    break
 
             output = np.nanmean(np.asfarray(output_list), axis=0)
             output = stats.zscore(output)

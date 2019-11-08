@@ -125,3 +125,5 @@ training_data/
 
 *.mat
 *.npy
+
+data/

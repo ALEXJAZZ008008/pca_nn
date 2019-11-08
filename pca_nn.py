@@ -1,72 +1,10 @@
 from __future__ import division, print_function
-import tensorflow as tf
-from tensorflow import keras as k
+import keras as k
 import numpy as np
 import scipy.io
 from scipy import stats
 
 import network
-
-
-# https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
-def rescale_linear(array, new_min, new_max):
-    """Rescale an arrary linearly."""
-    minimum, maximum = np.min(array), np.max(array)
-    m = (new_max - new_min) / (maximum - minimum)
-    b = new_min - m * minimum
-    return m * array + b
-
-
-def get_x_mat(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
-    print("Getting x")
-
-    x = []
-
-    sinos = scipy.io.loadmat(input_path)
-    sinos_array = np.mean(sinos.get(list(sinos.keys())[3]), 3).T
-
-    limit = start_position + data_window_size
-
-    if limit > data_size:
-        limit = (data_size - window_size) + 1
-
-    for i in range(start_position, limit, window_stride_size):
-        x_window = []
-
-        for j in range(window_size):
-            x_window.append(sinos_array[i + j])
-
-        x.append(np.asfarray(x_window).T)
-
-    print("Got x")
-
-    return np.nan_to_num(np.asfarray(x, dtype="float16"))
-
-
-def get_y_mat(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
-    print("Get y")
-
-    y = []
-
-    test = scipy.io.loadmat(input_path)
-    test_array = rescale_linear(test.get(list(test.keys())[3]), -1.0, 1.0)
-
-    limit = start_position + data_window_size
-
-    if limit > data_size:
-        limit = (data_size - window_size) + 1
-
-    for i in range(start_position, limit, window_stride_size):
-        y_window = []
-
-        for j in range(window_size):
-            y_window.append(test_array[i + j])
-
-        y.append(np.squeeze(np.asfarray(y_window)))
-
-    print("Got y")
-
-    return np.nan_to_num(np.asfarray(y, dtype="float16"))
 
 
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -93,7 +31,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got x")
 
-    return np.nan_to_num(np.asfarray(x, dtype="float16")), start_position, out_of_bounds_bool
+    return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -120,32 +58,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y, dtype="float16")), start_position, out_of_bounds_bool
-
-
-# https://stackoverflow.com/questions/43855162/rmse-rmsle-loss-function-in-keras
-def root_mean_squared_error(y_true, y_pred):
-    return k.backend.sqrt(k.backend.mean(k.backend.square(y_pred - y_true)))
-
-
-# https://stackoverflow.com/questions/46619869/how-to-specify-the-correlation-coefficient-as-the-loss-function-in-keras
-def correlation_coefficient_loss(y_true, y_pred):
-    x = y_true
-    y = y_pred
-    mx = k.backend.mean(x)
-    my = k.backend.mean(y)
-    xm, ym = x-mx, y-my
-    r_num = k.backend.sum(tf.multiply(xm, ym))
-    r_den = k.backend.sqrt(tf.multiply(k.backend.sum(k.backend.square(xm)), k.backend.sum(k.backend.square(ym))))
-    r = r_num / r_den
-
-    r = k.backend.maximum(k.backend.minimum(r, 1.0), -1.0)
-    return 1 - k.backend.square(r)
-
-
-# https://stackoverflow.com/questions/51625357/i-want-to-use-tensorflows-metricpearson-correlation-in-keras
-def tf_pearson(y_true, y_pred):
-    return tf.contrib.metrics.streaming_pearson_correlation(y_pred, y_true)[1]
+    return np.nan_to_num(np.asfarray(y)).astype(np.float32), start_position, out_of_bounds_bool
 
 
 def fit_model(input_model,
@@ -161,9 +74,7 @@ def fit_model(input_model,
               data_size,
               window_stride_size,
               output_path,
-              epochs,
-              lr,
-              lr_factor):
+              epochs):
     print("Get training data")
 
     x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
@@ -193,21 +104,19 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.resnet_rnn(input_x, output_size)
+            x = network.test_down_out(input_x)
 
-            x = network.output_module(x, output_size)
+            x = network.output_module(x, output_size, "tanh")
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.SGD(lr=lr),
+            model.compile(optimizer=k.optimizers.Adadelta(),
                           loss=k.losses.mean_squared_error,
                           metrics=["mean_absolute_error"])
     else:
         print("Using input model")
 
         model = input_model
-
-    tf.compat.v1.keras.backend.set_value(model.optimizer.lr, lr)
 
     print("lr: " + str(k.backend.eval(model.optimizer.lr)))
 
@@ -218,34 +127,15 @@ def fit_model(input_model,
 
     print("Fitting model")
 
-    tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.local_variables_initializer())
-
     y_train_len = len(y_train)
-    batch_size = int(y_train_len / 4)
+    batch_size = int(y_train_len / 10)
 
     if batch_size <= 0:
         batch_size = 1
 
-    patience = int(epochs / 11)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
 
-    if patience <= 0:
-        patience = 2
-
-    reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="mean_absolute_error",
-                                              factor=lr_factor,
-                                              min_delta=0.0001,
-                                              patience=patience,
-                                              cooldown=1,
-                                              verbose=0)
-
-    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
-
-    print("Metrics: ", model.metrics_names)
-    print("Train loss, acc:", loss)
-
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
-
-    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=0)
+    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1)
 
     print("Metrics: ", model.metrics_names)
     print("Train loss, acc:", loss)
@@ -359,6 +249,15 @@ def standardise(input_path, output_path):
         np.save(output_path[i], data_array)
 
 
+# https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
+def rescale_linear(array, new_min, new_max):
+    """Rescale an arrary linearly."""
+    minimum, maximum = np.min(array), np.max(array)
+    m = (new_max - new_min) / (maximum - minimum)
+    b = new_min - m * minimum
+    return m * array + b
+
+
 def rescale(input_path, output_path):
     data_array = []
 
@@ -373,14 +272,6 @@ def rescale(input_path, output_path):
 
 
 def main(fit_model_bool, while_bool, load_bool):
-    config = tf.compat.v1.ConfigProto()
-    config.gpu_options.allow_growth = True
-    sess = tf.compat.v1.Session(config=config)
-
-    tf.compat.v1.keras.backend.set_session(sess)
-
-    tf.compat.v1.keras.backend.set_floatx("float16")
-
     x_path_orig_list = ["./sinos.mat"]
     y_path_orig_list = ["./output_signal.mat"]
     x_path_list = ["sinos_standardised.npy"]
@@ -398,10 +289,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
         while_model = None
 
-        epoch_size = 1000
-
-        lr = 1.0
-        lr_factor = 0.9
+        epoch_size = 10
 
         while True:
             path_length = len(x_path_list)
@@ -431,9 +319,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                     data_size,
                                                                                     window_stride_size,
                                                                                     "./results/",
-                                                                                    epoch_size,
-                                                                                    lr,
-                                                                                    lr_factor)
+                                                                                    epoch_size)
 
                     if out_of_bounds_bool:
                         break
@@ -507,4 +393,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, False, False)
+    main(True, False, True)

@@ -35,13 +35,6 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
-    out_of_bounds_bool = False
-
-    if start_position + data_window_size + window_size > data_size:
-        start_position = data_size - data_window_size
-
-        out_of_bounds_bool = True
-
     print("Get y")
 
     y = []
@@ -58,7 +51,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y)).astype(np.float32), start_position, out_of_bounds_bool
+    return np.nan_to_num(np.asfarray(y)).astype(np.float32)
 
 
 def fit_model(input_model,
@@ -83,12 +76,12 @@ def fit_model(input_model,
                                                         window_size,
                                                         data_size,
                                                         window_stride_size)
-    y_train, none, none = get_y(y_input_path,
-                                start_position,
-                                data_window_size,
-                                window_size,
-                                data_size,
-                                window_stride_size)
+    y_train = get_y(y_input_path,
+                    start_position,
+                    data_window_size,
+                    window_size,
+                    data_size,
+                    window_stride_size)
 
     if input_model is None:
         print("No input model")
@@ -117,8 +110,6 @@ def fit_model(input_model,
         print("Using input model")
 
         model = input_model
-
-    print("lr: " + str(k.backend.eval(model.optimizer.lr)))
 
     model.summary()
 
@@ -157,7 +148,7 @@ def fit_model(input_model,
                    output_path,
                    output_path)
 
-    return model, k.backend.eval(model.optimizer.lr), start_position, out_of_bounds_bool
+    return model, start_position, out_of_bounds_bool
 
 
 def write_to_file(file, data):
@@ -190,12 +181,12 @@ def test_model(input_model,
                                                        window_size,
                                                        data_size,
                                                        window_stride_size)
-    y_test, none, none = get_y(y_input_path,
-                               start_position,
-                               data_window_size,
-                               window_size,
-                               data_size,
-                               window_stride_size)
+    y_test = get_y(y_input_path,
+                   start_position,
+                   data_window_size,
+                   window_size,
+                   data_size,
+                   window_stride_size)
 
     if input_model is None:
         print("No input model")
@@ -306,20 +297,20 @@ def main(fit_model_bool, while_bool, load_bool):
                 for j in range(0, data_size, data_window_stride_size):
                     print("Data: " + str(j) + "/" + str(data_size))
 
-                    while_model, lr, start_position, out_of_bounds_bool = fit_model(while_model,
-                                                                                    True,
-                                                                                    load_bool,
-                                                                                    False,
-                                                                                    True,
-                                                                                    x_path_list[i],
-                                                                                    y_path_list[i],
-                                                                                    j,
-                                                                                    data_window_size,
-                                                                                    window_size,
-                                                                                    data_size,
-                                                                                    window_stride_size,
-                                                                                    "./results/",
-                                                                                    epoch_size)
+                    while_model, start_position, out_of_bounds_bool = fit_model(while_model,
+                                                                                True,
+                                                                                load_bool,
+                                                                                False,
+                                                                                True,
+                                                                                x_path_list[i],
+                                                                                y_path_list[i],
+                                                                                j,
+                                                                                data_window_size,
+                                                                                window_size,
+                                                                                data_size,
+                                                                                window_stride_size,
+                                                                                "./results/",
+                                                                                epoch_size)
 
                     if out_of_bounds_bool:
                         break
@@ -393,4 +384,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, False, True)
+    main(True, True, True)

@@ -799,46 +799,107 @@ def test_module_up(x, conv_filter):
     return x
 
 
-def test_down(x):
-    x = k.layers.Convolution3D(filters=1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+def test_in(x):
+    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("tanh")(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x_shortcut_1 = x
-    x = test_module_down(x, 2)
-
-    x_shortcut_2 = x
-    x = test_module_down(x, 4)
-
-    x_shortcut_3 = x
-    x = test_module_down(x, 8)
-
-    x_shortcut_4 = x
-    x = test_module_down(x, 16)
-
-    x_shortcut_5 = x
-    x = test_module_down(x, 32)
-
-    x_shortcut_6 = x
-    x = test_module_down(x, 64)
-
-    x_shortcut_7 = x
-    x = test_module_down(x, 128)
-
-    return x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7
+    return x
 
 
-def test_down_out(x):
-    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
+def test_rnn(x):
+    x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4]]
+
+    x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
+
+    for _ in range(2):
+        x = k.layers.LSTM(40, return_sequences=True)(x)
+        x = k.layers.Activation("selu")(x)
+        x = k.layers.Dropout(0.5)(x)
+
+    x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3]))(x)
+
+    return x
+
+def test_out(x):
+    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.Activation("selu")(x)
+    x = k.layers.Dropout(0.5)(x)
 
     x = k.layers.Flatten()(x)
 
     return x
 
 
+def test_rnn_out(x):
+    x = test_in(x)
+
+    x = test_rnn(x)
+
+    x = test_out(x)
+
+    return x
+
+
+def test_down(x):
+    x_shortcut_1 = x
+    x = test_module_down(x, 1)
+
+    x_shortcut_2 = x
+    x = test_module_down(x, 2)
+
+    x_shortcut_3 = x
+    x = test_module_down(x, 4)
+
+    x_shortcut_4 = x
+    x = test_module_down(x, 8)
+
+    x_shortcut_5 = x
+    x = test_module_down(x, 16)
+
+    x_shortcut_6 = x
+    x = test_module_down(x, 32)
+
+    x_shortcut_7 = x
+    x = test_module_down(x, 64)
+
+    return x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7
+
+
+def test_down_out(x):
+    x = test_in(x)
+
+    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
+
+    x = test_out(x)
+
+    return x
+
+def test_rnn_down_rnn_out(x):
+    x = test_in(x)
+
+    x = test_rnn(x)
+
+    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.Activation("selu")(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
+
+    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
+    x = k.layers.Activation("selu")(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    x = test_rnn(x)
+
+    x = test_out(x)
+
+    return x
+
+
 def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcut_3, x_shortcut_2, x_shortcut_1):
-    x = test_module_up(x, 128)
+    x = test_module_up(x, 64)
 
     ch, cw = get_crop_shape(x, x_shortcut_7)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -849,7 +910,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_7])
 
-    x = test_module_up(x, 64)
+    x = test_module_up(x, 32)
 
     ch, cw = get_crop_shape(x, x_shortcut_6)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -860,7 +921,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_6])
 
-    x = test_module_up(x, 32)
+    x = test_module_up(x, 16)
 
     ch, cw = get_crop_shape(x, x_shortcut_5)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -871,7 +932,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_5])
 
-    x = test_module_up(x, 16)
+    x = test_module_up(x, 8)
 
     ch, cw = get_crop_shape(x, x_shortcut_4)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -882,7 +943,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_4])
 
-    x = test_module_up(x, 8)
+    x = test_module_up(x, 4)
 
     ch, cw = get_crop_shape(x, x_shortcut_3)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -893,7 +954,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_3])
 
-    x = test_module_up(x, 4)
+    x = test_module_up(x, 2)
 
     ch, cw = get_crop_shape(x, x_shortcut_2)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -904,7 +965,7 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
     x = k.layers.Concatenate(axis=4)([x, x_shortcut_2])
 
-    x = test_module_up(x, 2)
+    x = test_module_up(x, 1)
 
     ch, cw = get_crop_shape(x, x_shortcut_1)
     x = k.layers.Cropping3D(cropping=(ch, cw))(x)
@@ -919,10 +980,12 @@ def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcu
 
 
 def test(x):
+    x = test_in(x)
+
     x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
 
     x = test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcut_3, x_shortcut_2, x_shortcut_1)
 
-    x = k.layers.Flatten()(x)
+    x = test_out(x)
 
     return x

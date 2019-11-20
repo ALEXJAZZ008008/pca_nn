@@ -34,7 +34,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
     return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool
 
 
-def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
+def get_y(input_path, start_position, data_window_size, window_size, window_stride_size):
     print("Get y")
 
     y = []
@@ -80,7 +80,6 @@ def fit_model(input_model,
                     start_position,
                     data_window_size,
                     window_size,
-                    data_size,
                     window_stride_size)
 
     if input_model is None:
@@ -97,7 +96,7 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = network.test_down_out(input_x)
+            x = network.test_rnn_down_rnn_out(input_x)
 
             x = network.output_module(x, output_size, "tanh")
 
@@ -185,7 +184,6 @@ def test_model(input_model,
                    start_position,
                    data_window_size,
                    window_size,
-                   data_size,
                    window_stride_size)
 
     if input_model is None:
@@ -384,4 +382,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(True, False, False)

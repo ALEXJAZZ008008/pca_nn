@@ -3,7 +3,6 @@ import keras as k
 
 def output_module(x, size, activation):
     x = k.layers.Dense(units=size)(x)
-    x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation(activation)(x)
 
     return x
@@ -751,58 +750,18 @@ def voxelmorph(x):
     return x
 
 
-def test_module_down(x, conv_filter):
-    x_1 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
-    x_1 = k.layers.Activation("selu")(x_1)
-    x_1 = k.layers.Dropout(0.5)(x_1)
-
-    x_2 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
-    x_2 = k.layers.Activation("selu")(x_2)
-    x_2 = k.layers.Dropout(0.5)(x_2)
-
-    x_3 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_3 = k.layers.Activation("selu")(x_3)
-    x_3 = k.layers.Dropout(0.5)(x_3)
-
-    x_4 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(9, 9, 9), strides=(2, 2, 2), padding="same")(x)
-    x_4 = k.layers.Activation("selu")(x_4)
-    x_4 = k.layers.Dropout(0.5)(x_4)
-
-    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
-
-    return x
-
-
-def test_module_up(x, conv_filter):
-    x_1 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
-    x_1 = k.layers.Activation("selu")(x_1)
-    x_1 = k.layers.Dropout(0.5)(x_1)
-    x_1 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_1)
-
-    x_2 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
-    x_2 = k.layers.Activation("selu")(x_2)
-    x_2 = k.layers.Dropout(0.5)(x_2)
-    x_2 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_2)
-
-    x_3 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_3 = k.layers.Activation("selu")(x_3)
-    x_3 = k.layers.Dropout(0.5)(x_3)
-    x_3 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_3)
-
-    x_4 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_4 = k.layers.Activation("selu")(x_4)
-    x_4 = k.layers.Dropout(0.5)(x_4)
-    x_4 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_4)
-
-    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
-
-    return x
-
-
 def test_in(x):
     x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("tanh")(x)
+    x = k.layers.Dropout(0.5)(x)
+
+    return x
+
+
+def test_rnn_module(x, size):
+    x = k.layers.LSTM(40 * size, return_sequences=True)(x)
+    x = k.layers.Activation("selu")(x)
     x = k.layers.Dropout(0.5)(x)
 
     return x
@@ -813,10 +772,9 @@ def test_rnn(x):
 
     x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
 
-    for _ in range(2):
-        x = k.layers.LSTM(40, return_sequences=True)(x)
-        x = k.layers.Activation("selu")(x)
-        x = k.layers.Dropout(0.5)(x)
+    x = test_rnn_module(x, 4)
+    x = test_rnn_module(x, 2)
+    x = test_rnn_module(x, 1)
 
     x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3]))(x)
 
@@ -838,6 +796,28 @@ def test_rnn_out(x):
     x = test_rnn(x)
 
     x = test_out(x)
+
+    return x
+
+
+def test_module_down(x, conv_filter):
+    x_1 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
+    x_1 = k.layers.Activation("selu")(x_1)
+    x_1 = k.layers.Dropout(0.5)(x_1)
+
+    x_2 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
+    x_2 = k.layers.Activation("selu")(x_2)
+    x_2 = k.layers.Dropout(0.5)(x_2)
+
+    x_3 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
+    x_3 = k.layers.Activation("selu")(x_3)
+    x_3 = k.layers.Dropout(0.5)(x_3)
+
+    x_4 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(9, 9, 9), strides=(2, 2, 2), padding="same")(x)
+    x_4 = k.layers.Activation("selu")(x_4)
+    x_4 = k.layers.Dropout(0.5)(x_4)
+
+    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
 
     return x
 
@@ -894,6 +874,32 @@ def test_rnn_down_rnn_out(x):
     x = test_rnn(x)
 
     x = test_out(x)
+
+    return x
+
+
+def test_module_up(x, conv_filter):
+    x_1 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
+    x_1 = k.layers.Activation("selu")(x_1)
+    x_1 = k.layers.Dropout(0.5)(x_1)
+    x_1 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_1)
+
+    x_2 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
+    x_2 = k.layers.Activation("selu")(x_2)
+    x_2 = k.layers.Dropout(0.5)(x_2)
+    x_2 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_2)
+
+    x_3 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
+    x_3 = k.layers.Activation("selu")(x_3)
+    x_3 = k.layers.Dropout(0.5)(x_3)
+    x_3 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_3)
+
+    x_4 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
+    x_4 = k.layers.Activation("selu")(x_4)
+    x_4 = k.layers.Dropout(0.5)(x_4)
+    x_4 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_4)
+
+    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
 
     return x
 

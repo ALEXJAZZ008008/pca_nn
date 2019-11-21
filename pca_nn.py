@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+import math
 import keras as k
 import numpy as np
 import scipy.io
@@ -10,7 +11,7 @@ import network
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
     out_of_bounds_bool = False
 
-    if start_position + data_window_size + window_size > data_size:
+    if start_position + data_window_size + window_size >= data_size:
         start_position = data_size - data_window_size
 
         out_of_bounds_bool = True
@@ -21,11 +22,22 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     sinos_array = np.load(input_path)
 
+    data_load_out_of_bounds_bool = False
+
     for i in range(start_position, start_position + data_window_size, window_stride_size):
         x_window = []
 
         for j in range(window_size):
+            if out_of_bounds_bool:
+                if i + j >= data_size:
+                    data_load_out_of_bounds_bool = True
+
+                    break
+
             x_window.append(sinos_array[i + j])
+
+        if data_load_out_of_bounds_bool:
+            break
 
         x.append(np.asfarray(x_window).T)
 
@@ -34,18 +46,29 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
     return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool
 
 
-def get_y(input_path, start_position, data_window_size, window_size, window_stride_size):
+def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size, out_of_bounds_bool):
     print("Get y")
 
     y = []
 
     test_array = np.load(input_path)
 
+    data_load_out_of_bounds_bool = False
+
     for i in range(start_position, start_position + data_window_size, window_stride_size):
         y_window = []
 
         for j in range(window_size):
+            if out_of_bounds_bool:
+                if i + j >= data_size:
+                    data_load_out_of_bounds_bool = True
+
+                    break
+
             y_window.append(test_array[i + j])
+
+        if data_load_out_of_bounds_bool:
+            break
 
         y.append(np.squeeze(np.asfarray(y_window)))
 
@@ -80,7 +103,9 @@ def fit_model(input_model,
                     start_position,
                     data_window_size,
                     window_size,
-                    window_stride_size)
+                    data_size,
+                    window_stride_size,
+                    out_of_bounds_bool)
 
     if input_model is None:
         print("No input model")
@@ -184,7 +209,9 @@ def test_model(input_model,
                    start_position,
                    data_window_size,
                    window_size,
-                   window_stride_size)
+                   data_size,
+                   window_stride_size,
+                   out_of_bounds_bool)
 
     if input_model is None:
         print("No input model")
@@ -261,10 +288,10 @@ def rescale(input_path, output_path):
 
 
 def main(fit_model_bool, while_bool, load_bool):
-    x_path_orig_list = ["./sinos.mat"]
-    y_path_orig_list = ["./output_signal.mat"]
-    x_path_list = ["sinos_standardised.npy"]
-    y_path_list = ["output_signal_rescaled.npy"]
+    x_path_orig_list = ["./sinos_0.mat"]
+    y_path_orig_list = ["./output_signal_0.mat"]
+    x_path_list = ["sinos_standardised_0.npy"]
+    y_path_list = ["output_signal_rescaled_0.npy"]
 
     standardise(x_path_orig_list, x_path_list)
     rescale(y_path_orig_list, y_path_list)
@@ -298,7 +325,7 @@ def main(fit_model_bool, while_bool, load_bool):
                     while_model, start_position, out_of_bounds_bool = fit_model(while_model,
                                                                                 True,
                                                                                 load_bool,
-                                                                                False,
+                                                                                True,
                                                                                 True,
                                                                                 x_path_list[i],
                                                                                 y_path_list[i],
@@ -318,7 +345,7 @@ def main(fit_model_bool, while_bool, load_bool):
             if not while_bool:
                 break
     else:
-        window_stride_size = window_size
+        window_stride_size = math.floor(window_size / 2)
 
         print("Test model")
         print("Load model from file")
@@ -372,7 +399,22 @@ def main(fit_model_bool, while_bool, load_bool):
                 if out_of_bounds_bool:
                     break
 
-            output = np.nanmean(np.asfarray(output_list), axis=0)
+            output_array = np.asfarray(output_list)
+
+            flipped = True
+
+            while flipped:
+                flipped = False
+
+                for j in range(2, len(output_array)):
+                    cc = np.ma.corrcoef(np.ma.masked_invalid(output_array[i - 1]), np.ma.masked_invalid(output_array[i]))
+
+                    if cc.data[0][1] < 0 or cc.data[1][0] < 0:
+                        flipped = True
+
+                        output_array[i] = output_array[i] * -1
+
+            output = np.nanmean(np.asfarray(output_array), axis=0)
             output = stats.zscore(output)
 
             with open("./results/" + "/signal_" + str(i) + ".csv", "w") as file:

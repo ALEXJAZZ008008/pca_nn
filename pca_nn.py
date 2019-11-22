@@ -288,24 +288,70 @@ def rescale(input_path, output_path):
 
 
 def main(fit_model_bool, while_bool, load_bool):
-    x_path_orig_list = ["./sinos_0.mat"]
-    y_path_orig_list = ["./output_signal_0.mat"]
-    x_path_list = ["sinos_standardised_0.npy"]
-    y_path_list = ["output_signal_rescaled_0.npy"]
+    x_path_orig_list = ["./normalised_sinos_1.mat",
+                        "./normalised_sinos_3.mat",
+                        "./normalised_sinos_5.mat",
+                        "./normalised_sinos_6.mat",
+                        "./normalised_sinos_7.mat",
+                        "./normalised_sinos_8.mat",
+                        "./normalised_sinos_9.mat",
+                        "./normalised_sinos_15.mat",
+                        "./normalised_sinos_19.mat",
+                        "./normalised_sinos_20.mat"]
+    y_path_orig_list = ["./output_signal_1.mat",
+                        "./output_signal_3.mat",
+                        "./output_signal_5.mat",
+                        "./output_signal_6.mat",
+                        "./output_signal_7.mat",
+                        "./output_signal_8.mat",
+                        "./output_signal_9.mat",
+                        "./output_signal_15.mat",
+                        "./output_signal_19.mat",
+                        "./output_signal_20.mat"]
+    x_path_list = ["normalised_sinos_standardised_1.npy",
+                   "normalised_sinos_standardised_3.npy",
+                   "normalised_sinos_standardised_5.npy",
+                   "normalised_sinos_standardised_6.npy",
+                   "normalised_sinos_standardised_7.npy",
+                   "normalised_sinos_standardised_8.npy",
+                   "normalised_sinos_standardised_9.npy",
+                   "normalised_sinos_standardised_15.npy",
+                   "normalised_sinos_standardised_19.npy",
+                   "normalised_sinos_standardised_20.npy"]
+    y_path_list = ["output_signal_rescaled_1.npy",
+                   "output_signal_rescaled_3.npy",
+                   "output_signal_rescaled_5.npy",
+                   "output_signal_rescaled_6.npy",
+                   "output_signal_rescaled_7.npy",
+                   "output_signal_rescaled_8.npy",
+                   "output_signal_rescaled_9.npy",
+                   "output_signal_rescaled_15.npy",
+                   "output_signal_rescaled_19.npy",
+                   "output_signal_rescaled_20.npy"]
+    output_file_name = ["estimated_signal_1.csv",
+                        "estimated_signal_3.csv",
+                        "estimated_signal_5.csv",
+                        "estimated_signal_6.csv",
+                        "estimated_signal_7.csv",
+                        "estimated_signal_8.csv",
+                        "estimated_signal_9.csv",
+                        "estimated_signal_15.csv",
+                        "estimated_signal_19.csv",
+                        "estimated_signal_20.csv"]
 
     standardise(x_path_orig_list, x_path_list)
     rescale(y_path_orig_list, y_path_list)
 
     window_size = 40
     data_window_size = window_size * 4
-    data_window_stride_size = data_window_size - window_size
+    data_window_stride_size = data_window_size
 
     if fit_model_bool:
         window_stride_size = 1
 
         while_model = None
 
-        epoch_size = 10
+        epoch_size = 1
 
         while True:
             path_length = len(x_path_list)
@@ -407,7 +453,8 @@ def main(fit_model_bool, while_bool, load_bool):
                 flipped = False
 
                 for j in range(2, len(output_array)):
-                    cc = np.ma.corrcoef(np.ma.masked_invalid(output_array[i - 1]), np.ma.masked_invalid(output_array[i]))
+                    cc = np.ma.corrcoef(np.ma.masked_invalid(output_array[i - 1]),
+                                        np.ma.masked_invalid(output_array[i]))
 
                     if cc.data[0][1] < 0 or cc.data[1][0] < 0:
                         flipped = True
@@ -417,7 +464,7 @@ def main(fit_model_bool, while_bool, load_bool):
             output = np.nanmean(np.asfarray(output_array), axis=0)
             output = stats.zscore(output)
 
-            with open("./results/" + "/signal_" + str(i) + ".csv", "w") as file:
+            with open("./results/" + output_file_name[i], "w") as file:
                 write_to_file(file, output.reshape(output.size, 1))
 
         print("Done")

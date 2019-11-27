@@ -37,7 +37,7 @@ def fully_connected(x, units, batch_normalisation_bool, activation):
     return x
 
 
-def deep_fully_connected(x, layers, units, batch_normalisation_bool, activation, fully_connected_bool, output_size):
+def deep_fully_connected(x, layers, units, batch_normalisation_bool, activation):
     x = k.layers.Flatten()(x)
 
     for _ in range(layers):
@@ -49,25 +49,11 @@ def deep_fully_connected(x, layers, units, batch_normalisation_bool, activation,
         x = k.layers.Activation(activation)(x)
         x = k.layers.Dropout(0.5)(x)
 
-    if fully_connected_bool:
-        x = k.layers.Dense(units=output_size * 10)(x)
-
-        if batch_normalisation_bool:
-            x = k.layers.BatchNormalization()(x)
-
-        x = k.layers.Activation(activation)(x)
-        x = k.layers.Dropout(0.5)(x)
-
-        x = k.layers.Dense(units=output_size)(x)
-        x = k.layers.BatchNormalization()(x)
-        x = k.layers.Activation("sigmoid")(x)
-        x = k.layers.Dropout(0.5)(x)
-
     return x
 
 
-def conv(x, filter_size, batch_normalisation_bool, activation):
-    x = k.layers.Convolution3D(filters=filter_size, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
+def conv(x, filters, batch_normalisation_bool, activation):
+    x = k.layers.Convolution3D(filters=filters, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
 
     if batch_normalisation_bool:
         x = k.layers.BatchNormalization()(x)
@@ -80,9 +66,9 @@ def conv(x, filter_size, batch_normalisation_bool, activation):
     return x
 
 
-def deep_conv(x, layers, filter_size, batch_normalisation_bool, activation):
+def deep_conv(x, layers, filters, batch_normalisation_bool, activation):
     for _ in range(layers):
-        x = k.layers.Convolution3D(filters=filter_size, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
+        x = k.layers.Convolution3D(filters=filters, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
 
         if batch_normalisation_bool:
             x = k.layers.BatchNormalization()(x)
@@ -95,10 +81,9 @@ def deep_conv(x, layers, filter_size, batch_normalisation_bool, activation):
     return x
 
 
-def deep_conv_fully_connected(x, conv_layers, filter_size, batch_normalisation_bool, activation, fully_connected_size,
-                              units, fully_connected_bool, ouput_size):
+def deep_conv_fully_connected(x, conv_layers, filters, batch_normalisation_bool, activation, fully_connected_size, units):
     for _ in range(conv_layers):
-        x = k.layers.Convolution3D(filters=filter_size, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
+        x = k.layers.Convolution3D(filters=filters, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
 
         if batch_normalisation_bool:
             x = k.layers.BatchNormalization()(x)
@@ -106,15 +91,15 @@ def deep_conv_fully_connected(x, conv_layers, filter_size, batch_normalisation_b
         x = k.layers.Activation(activation)(x)
         x = k.layers.Dropout(0.5)(x)
 
-    x = deep_fully_connected(x, fully_connected_size, batch_normalisation_bool, activation, units, fully_connected_bool, ouput_size)
+    x = deep_fully_connected(x, fully_connected_size, batch_normalisation_bool, activation, units)
 
     return x
 
 
-def rnn(x, output_size, batch_normalisation_bool, activation):
+def rnn(x, units, batch_normalisation_bool, activation):
     x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
 
-    x = k.layers.LSTM(output_size, return_sequences=True)(x)
+    x = k.layers.LSTM(units=units, return_sequences=True)(x)
 
     if batch_normalisation_bool:
         x = k.layers.BatchNormalization()(x)
@@ -125,11 +110,11 @@ def rnn(x, output_size, batch_normalisation_bool, activation):
     return x
 
 
-def deep_rnn(x, size, batch_normalisation_bool, output_size, activation):
+def deep_rnn(x, layers, units, batch_normalisation_bool, activation):
     x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
 
-    for _ in range(size):
-        x = k.layers.LSTM(output_size, return_sequences=True)(x)
+    for _ in range(layers):
+        x = k.layers.LSTM(units, return_sequences=True)(x)
 
         if batch_normalisation_bool:
             x = k.layers.BatchNormalization()(x)
@@ -236,9 +221,9 @@ def alexnet(x):
     return x
 
 
-def vggnet_module(x, conv_filter, iterations):
-    for _ in range(iterations):
-        x = k.layers.Convolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="valid")(x)
+def vggnet_module(x, layers, filters):
+    for _ in range(layers):
+        x = k.layers.Convolution3D(filters=filters, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="valid")(x)
         x = k.layers.BatchNormalization()(x)
         x = k.layers.Activation("sigmoid")(x)
         x = k.layers.Dropout(0.5)(x)
@@ -249,11 +234,11 @@ def vggnet_module(x, conv_filter, iterations):
 
 
 def vgg16net(x):
-    x = vggnet_module(x, 64, 2)
-    x = vggnet_module(x, 128, 2)
-    x = vggnet_module(x, 256, 2)
-    x = vggnet_module(x, 512, 3)
-    x = vggnet_module(x, 512, 3)
+    x = vggnet_module(x, 2, 64)
+    x = vggnet_module(x, 2, 128)
+    x = vggnet_module(x, 2, 256)
+    x = vggnet_module(x, 3, 512)
+    x = vggnet_module(x, 3, 512)
 
     x = k.layers.Flatten()(x)
 
@@ -263,11 +248,11 @@ def vgg16net(x):
 
 
 def vgg19net(x):
-    x = vggnet_module(x, 64, 2)
-    x = vggnet_module(x, 128, 2)
-    x = vggnet_module(x, 256, 2)
-    x = vggnet_module(x, 512, 4)
-    x = vggnet_module(x, 512, 4)
+    x = vggnet_module(x, 2, 64)
+    x = vggnet_module(x, 2, 128)
+    x = vggnet_module(x, 2, 256)
+    x = vggnet_module(x, 4, 512)
+    x = vggnet_module(x, 4, 512)
 
     x = k.layers.Flatten()(x)
 
@@ -276,32 +261,32 @@ def vgg19net(x):
     return x
 
 
-def googlenet_module(x, conv_filter_1, conv_filter_2, conv_filter_3, conv_filter_4, conv_filter_5, conv_filter_6):
-    x_1 = k.layers.Convolution3D(filters=conv_filter_1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
+def googlenet_module(x, filters_1, filters_2, filters_3, filters_4, filters_5, filters_6):
+    x_1 = k.layers.Convolution3D(filters=filters_1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
     x_1 = k.layers.BatchNormalization()(x_1)
     x_1 = k.layers.Activation("relu")(x_1)
     x_1 = k.layers.Dropout(0.5)(x_1)
 
-    x_2 = k.layers.Convolution3D(filters=conv_filter_2, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
+    x_2 = k.layers.Convolution3D(filters=filters_2, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
     x_2 = k.layers.BatchNormalization()(x_2)
     x_2 = k.layers.Activation("relu")(x_2)
     x_2 = k.layers.Dropout(0.5)(x_2)
-    x_2 = k.layers.Convolution3D(filters=conv_filter_3, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="same")(x_2)
+    x_2 = k.layers.Convolution3D(filters=filters_3, kernel_size=(3, 3, 3), strides=(1, 1, 1), padding="same")(x_2)
     x_2 = k.layers.BatchNormalization()(x_2)
     x_2 = k.layers.Activation("relu")(x_2)
     x_2 = k.layers.Dropout(0.5)(x_2)
 
-    x_3 = k.layers.Convolution3D(filters=conv_filter_4, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
+    x_3 = k.layers.Convolution3D(filters=filters_4, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
     x_3 = k.layers.BatchNormalization()(x_3)
     x_3 = k.layers.Activation("relu")(x_3)
     x_3 = k.layers.Dropout(0.5)(x_3)
-    x_3 = k.layers.Convolution3D(filters=conv_filter_5, kernel_size=(5, 5, 5), strides=(1, 1, 1), padding="same")(x_3)
+    x_3 = k.layers.Convolution3D(filters=filters_5, kernel_size=(5, 5, 5), strides=(1, 1, 1), padding="same")(x_3)
     x_3 = k.layers.BatchNormalization()(x_3)
     x_3 = k.layers.Activation("relu")(x_3)
     x_3 = k.layers.Dropout(0.5)(x_3)
 
     x_4 = k.layers.MaxPooling3D(pool_size=(3, 3, 3), strides=(1, 1, 1), padding="same")(x)
-    x_4 = k.layers.Convolution3D(filters=conv_filter_6, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x_4)
+    x_4 = k.layers.Convolution3D(filters=filters_6, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x_4)
     x_4 = k.layers.BatchNormalization()(x_4)
     x_4 = k.layers.Activation("relu")(x_4)
     x_4 = k.layers.Dropout(0.5)(x_4)
@@ -388,14 +373,13 @@ def googlenet(x):
     return x, x_1, x_2
 
 
-def resnet_module(x, conv_filter_1, conv_filter_2, conv_kernal):
-    x = k.layers.Convolution3D(filters=conv_filter_1, kernel_size=(conv_kernal, conv_kernal), strides=(1, 1, 1),
-                               padding="same")(x)
+def resnet_module(x, filters_1, filters_2, kernal_size):
+    x = k.layers.Convolution3D(filters=filters_1, kernel_size=(kernal_size, kernal_size), strides=(1, 1, 1), padding="same")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("relu")(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = k.layers.Convolution3D(filters=conv_filter_2, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="valid")(x)
+    x = k.layers.Convolution3D(filters=filters_2, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="valid")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("relu")(x)
     x = k.layers.Dropout(0.5)(x)
@@ -403,18 +387,18 @@ def resnet_module(x, conv_filter_1, conv_filter_2, conv_kernal):
     return x
 
 
-def resnet_conv_module(x, conv_filter_1, conv_filter_2, conv_filter_3, conv_kernal, conv_stride):
+def resnet_conv_module(x, filters_1, filters_2, filters_3, kernal_size, strides):
     x_shortcut = x
 
-    x = k.layers.Convolution3D(filters=conv_filter_1, kernel_size=(1, 1, 1), strides=(conv_stride, conv_stride),
+    x = k.layers.Convolution3D(filters=filters_1, kernel_size=(1, 1, 1), strides=(strides, strides),
                                padding="valid")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("relu")(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = resnet_module(x, conv_filter_2, conv_filter_3, conv_kernal)
+    x = resnet_module(x, filters_2, filters_3, kernal_size)
 
-    x_shortcut = k.layers.Convolution3D(filters=conv_filter_3, kernel_size=(1, 1, 1), strides=(conv_stride, conv_stride), padding="valid")(x_shortcut)
+    x_shortcut = k.layers.Convolution3D(filters=filters_3, kernel_size=(1, 1, 1), strides=(strides, strides), padding="valid")(x_shortcut)
 
     x = k.layers.Add()([x, x_shortcut])
     x = k.layers.BatchNormalization()(x)
@@ -424,15 +408,15 @@ def resnet_conv_module(x, conv_filter_1, conv_filter_2, conv_filter_3, conv_kern
     return x
 
 
-def resnet_identity_module(x, conv_filter_1, conv_filter_2, conv_filter_3, conv_kernal):
+def resnet_identity_module(x, filters_1, filters_2, filters_3, kernal_size):
     x_shortcut = x
 
-    x = k.layers.Convolution3D(filters=conv_filter_1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="valid", )(x)
+    x = k.layers.Convolution3D(filters=filters_1, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="valid", )(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("relu")(x)
     x = k.layers.Dropout(0.5)(x)
 
-    x = resnet_module(x, conv_filter_2, conv_filter_3, conv_kernal)
+    x = resnet_module(x, filters_2, filters_3, kernal_size)
 
     x = k.layers.Add()([x, x_shortcut])
     x = k.layers.Activation("relu")(x)
@@ -746,252 +730,5 @@ def voxelmorph(x):
     x = k.layers.Dropout(0.5)(x)
 
     x = k.layers.Flatten()(x)
-
-    return x
-
-
-def test_in(x):
-    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
-    x = k.layers.BatchNormalization()(x)
-    x = k.layers.Activation("tanh")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    return x
-
-
-def test_rnn_module(x, size):
-    x = k.layers.LSTM(40 * size, return_sequences=True)(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    return x
-
-
-def test_rnn(x):
-    x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4]]
-
-    x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
-
-    x = test_rnn_module(x, 4)
-    x = test_rnn_module(x, 2)
-    x = test_rnn_module(x, 1)
-
-    x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3]))(x)
-
-    return x
-
-def test_out(x):
-    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Flatten()(x)
-
-    return x
-
-
-def test_rnn_out(x):
-    x = test_in(x)
-
-    x = test_rnn(x)
-
-    x = test_out(x)
-
-    return x
-
-
-def test_module_down(x, conv_filter):
-    x_1 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
-    x_1 = k.layers.Activation("selu")(x_1)
-    x_1 = k.layers.Dropout(0.5)(x_1)
-
-    x_2 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
-    x_2 = k.layers.Activation("selu")(x_2)
-    x_2 = k.layers.Dropout(0.5)(x_2)
-
-    x_3 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_3 = k.layers.Activation("selu")(x_3)
-    x_3 = k.layers.Dropout(0.5)(x_3)
-
-    x_4 = k.layers.Convolution3D(filters=conv_filter, kernel_size=(9, 9, 9), strides=(2, 2, 2), padding="same")(x)
-    x_4 = k.layers.Activation("selu")(x_4)
-    x_4 = k.layers.Dropout(0.5)(x_4)
-
-    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
-
-    return x
-
-
-def test_down(x):
-    x_shortcut_1 = x
-    x = test_module_down(x, 1)
-
-    x_shortcut_2 = x
-    x = test_module_down(x, 2)
-
-    x_shortcut_3 = x
-    x = test_module_down(x, 4)
-
-    x_shortcut_4 = x
-    x = test_module_down(x, 8)
-
-    x_shortcut_5 = x
-    x = test_module_down(x, 16)
-
-    x_shortcut_6 = x
-    x = test_module_down(x, 32)
-
-    x_shortcut_7 = x
-    x = test_module_down(x, 64)
-
-    return x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7
-
-
-def test_down_out(x):
-    x = test_in(x)
-
-    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
-
-    x = test_out(x)
-
-    return x
-
-def test_rnn_down_rnn_out(x):
-    x = test_in(x)
-
-    x = test_rnn(x)
-
-    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
-
-    x = k.layers.Convolution3D(filters=40, kernel_size=(1, 1, 1), strides=(1, 1, 1), padding='same')(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = test_rnn(x)
-
-    x = test_out(x)
-
-    return x
-
-
-def test_module_up(x, conv_filter):
-    x_1 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
-    x_1 = k.layers.Activation("selu")(x_1)
-    x_1 = k.layers.Dropout(0.5)(x_1)
-    x_1 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_1)
-
-    x_2 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(5, 5, 5), strides=(2, 2, 2), padding="same")(x)
-    x_2 = k.layers.Activation("selu")(x_2)
-    x_2 = k.layers.Dropout(0.5)(x_2)
-    x_2 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_2)
-
-    x_3 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_3 = k.layers.Activation("selu")(x_3)
-    x_3 = k.layers.Dropout(0.5)(x_3)
-    x_3 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_3)
-
-    x_4 = k.layers.Deconvolution3D(filters=conv_filter, kernel_size=(7, 7, 7), strides=(2, 2, 2), padding="same")(x)
-    x_4 = k.layers.Activation("selu")(x_4)
-    x_4 = k.layers.Dropout(0.5)(x_4)
-    x_4 = k.layers.Reshape((x.get_shape()[1] * 2, x.get_shape()[2] * 2, conv_filter))(x_4)
-
-    x = k.layers.Concatenate(axis=4)([x_1, x_2, x_3, x_4])
-
-    return x
-
-
-def test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcut_3, x_shortcut_2, x_shortcut_1):
-    x = test_module_up(x, 64)
-
-    ch, cw = get_crop_shape(x, x_shortcut_7)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_7.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_7])
-
-    x = test_module_up(x, 32)
-
-    ch, cw = get_crop_shape(x, x_shortcut_6)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_6.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_6])
-
-    x = test_module_up(x, 16)
-
-    ch, cw = get_crop_shape(x, x_shortcut_5)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_5.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_5])
-
-    x = test_module_up(x, 8)
-
-    ch, cw = get_crop_shape(x, x_shortcut_4)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_4.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_4])
-
-    x = test_module_up(x, 4)
-
-    ch, cw = get_crop_shape(x, x_shortcut_3)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_3.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_3])
-
-    x = test_module_up(x, 2)
-
-    ch, cw = get_crop_shape(x, x_shortcut_2)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_2.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_2])
-
-    x = test_module_up(x, 1)
-
-    ch, cw = get_crop_shape(x, x_shortcut_1)
-    x = k.layers.Cropping3D(cropping=(ch, cw))(x)
-
-    x = k.layers.Convolution3D(filters=x_shortcut_1.get_shape()[3], kernel_size=(1, 1, 1), strides=(1, 1, 1), padding="same")(x)
-    x = k.layers.Activation("selu")(x)
-    x = k.layers.Dropout(0.5)(x)
-
-    x = k.layers.Concatenate(axis=4)([x, x_shortcut_1])
-
-    return x
-
-
-def test(x):
-    x = test_in(x)
-
-    x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x)
-
-    x = test_up(x, x_shortcut_7, x_shortcut_6, x_shortcut_5, x_shortcut_4, x_shortcut_3, x_shortcut_2, x_shortcut_1)
-
-    x = test_out(x)
 
     return x

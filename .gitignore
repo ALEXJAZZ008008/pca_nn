@@ -127,3 +127,6 @@ training_data/
 *.npy
 
 data/
+
+results/path_start_point
+results/data_start_point

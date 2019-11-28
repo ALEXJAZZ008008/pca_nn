@@ -1,9 +1,11 @@
 import keras as k
 
 
-def output_module(x, size, activation):
-    x = k.layers.Dense(units=size)(x)
-    x = k.layers.Activation(activation)(x)
+def output_module(x, units, activation, initializer):
+    x = k.layers.Dense(units=units,
+                       activation=activation,
+                       kernel_initializer=initializer,
+                       bias_initializer=k.initializers.Constant(0.0))(x)
 
     return x
 
@@ -81,7 +83,8 @@ def deep_conv(x, layers, filters, batch_normalisation_bool, activation):
     return x
 
 
-def deep_conv_fully_connected(x, conv_layers, filters, batch_normalisation_bool, activation, fully_connected_size, units):
+def deep_conv_fully_connected(x, conv_layers, filters, batch_normalisation_bool, activation, fully_connected_size,
+                              units):
     for _ in range(conv_layers):
         x = k.layers.Convolution3D(filters=filters, kernel_size=(3, 3, 3), strides=(2, 2, 2), padding="same")(x)
 
@@ -374,7 +377,8 @@ def googlenet(x):
 
 
 def resnet_module(x, filters_1, filters_2, kernal_size):
-    x = k.layers.Convolution3D(filters=filters_1, kernel_size=(kernal_size, kernal_size), strides=(1, 1, 1), padding="same")(x)
+    x = k.layers.Convolution3D(filters=filters_1, kernel_size=(kernal_size, kernal_size), strides=(1, 1, 1),
+                               padding="same")(x)
     x = k.layers.BatchNormalization()(x)
     x = k.layers.Activation("relu")(x)
     x = k.layers.Dropout(0.5)(x)
@@ -398,7 +402,8 @@ def resnet_conv_module(x, filters_1, filters_2, filters_3, kernal_size, strides)
 
     x = resnet_module(x, filters_2, filters_3, kernal_size)
 
-    x_shortcut = k.layers.Convolution3D(filters=filters_3, kernel_size=(1, 1, 1), strides=(strides, strides), padding="valid")(x_shortcut)
+    x_shortcut = k.layers.Convolution3D(filters=filters_3, kernel_size=(1, 1, 1), strides=(strides, strides),
+                                        padding="valid")(x_shortcut)
 
     x = k.layers.Add()([x, x_shortcut])
     x = k.layers.BatchNormalization()(x)

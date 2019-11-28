@@ -1,10 +1,95 @@
 from __future__ import division, print_function
+from random import seed
+from random import randint
+import time
 import keras as k
 import numpy as np
 import scipy.io
+import scipy.stats
 
 import network
 import test
+
+
+def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
+    out_of_bounds_bool = False
+
+    if start_position + data_window_size + window_size >= data_size:
+        start_position = data_size - data_window_size
+
+        out_of_bounds_bool = True
+
+    print("Getting x")
+
+    x = []
+
+    sinos_array = np.load(input_path)
+
+    data_load_out_of_bounds_bool = False
+
+    stochastic_i_list = []
+
+    seed(int(time.time()))
+
+    for i in range(start_position, start_position + data_window_size, window_stride_size):
+        x_window = []
+
+        stochastic_i = randint(0, data_size)
+
+        print("stochastic_i: " + str(stochastic_i))
+
+        stochastic_i_list.append(stochastic_i)
+
+        for j in range(window_size):
+            if out_of_bounds_bool:
+                if stochastic_i + j >= data_size:
+                    data_load_out_of_bounds_bool = True
+
+                    break
+
+            x_window.append(sinos_array[i + j])
+
+        if data_load_out_of_bounds_bool:
+            break
+
+        x.append(np.asfarray(x_window).T)
+
+    print("Got x")
+
+    return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool, stochastic_i_list
+
+
+def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list):
+    print("Get y")
+
+    y = []
+
+    test_array = np.load(input_path)
+
+    data_load_out_of_bounds_bool = False
+
+    for i in range(len(stochastic_i_list)):
+        y_window = []
+
+        print("stochastic_i: " + str(stochastic_i_list[i]))
+
+        for j in range(window_size):
+            if out_of_bounds_bool:
+                if stochastic_i_list[i] + j >= data_size:
+                    data_load_out_of_bounds_bool = True
+
+                    break
+
+            y_window.append(test_array[i + j])
+
+        if data_load_out_of_bounds_bool:
+            break
+
+        y.append(np.squeeze(np.asfarray(y_window)))
+
+    print("Got y")
+
+    return np.nan_to_num(np.asfarray(y)).astype(np.float32)
 
 
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -89,22 +174,34 @@ def fit_model(input_model,
               data_size,
               window_stride_size,
               output_path,
+              tof_bool,
+              stochastic_bool,
+              passthrough_bool,
               epochs):
     print("Get training data")
 
-    x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
-                                                        start_position,
-                                                        data_window_size,
-                                                        window_size,
-                                                        data_size,
-                                                        window_stride_size)
-    y_train = get_y(y_input_path,
-                    start_position,
-                    data_window_size,
-                    window_size,
-                    data_size,
-                    window_stride_size,
-                    out_of_bounds_bool)
+    if stochastic_bool:
+        x_train, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
+                                                                                          start_position,
+                                                                                          data_window_size,
+                                                                                          window_size,
+                                                                                          data_size,
+                                                                                          window_stride_size)
+        y_train = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
+    else:
+        x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
+                                                            start_position,
+                                                            data_window_size,
+                                                            window_size,
+                                                            data_size,
+                                                            window_stride_size)
+        y_train = get_y(y_input_path,
+                        start_position,
+                        data_window_size,
+                        window_size,
+                        data_size,
+                        window_stride_size,
+                        out_of_bounds_bool)
 
     if input_model is None:
         print("No input model")
@@ -120,14 +217,15 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = test.test_down_out(input_x, output_size, True, "prelu")
+            # x = test.test_in_down_up_out(input_x, 40, "he_uniform", True, "relu")
+            x = test.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "hard_sigmoid", "lecun_normal", False)
 
-            x = network.output_module(x, output_size, "tanh")
+            x = network.output_module(x, output_size, "tanh", "lecun_normal")
 
             model = k.Model(inputs=input_x, outputs=x)
 
             model.compile(optimizer=k.optimizers.Adagrad(),
-                          loss=k.losses.mean_absolute_percentage_error)
+                          loss=k.losses.mean_squared_error)
     else:
         print("Using input model")
 
@@ -138,33 +236,35 @@ def fit_model(input_model,
     if plot_bool:
         k.utils.plot_model(model, output_path + "model.png")
 
-    print("Fitting model")
+    if not passthrough_bool:
+        print("Fitting model")
 
-    batch_size = 10
+        batch_size = 10
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
+        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
 
-    loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1)
+        loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1)
 
-    print("Metrics: ", model.metrics_names)
-    print("Train loss, acc:", loss)
+        print("Metrics: ", model.metrics_names)
+        print("Train loss, acc:", loss)
 
     if save_bool:
         print("Saving model")
 
         model.save(output_path + "/model.h5")
 
-    if apply_bool:
-        test_model(model,
-                   x_input_path,
-                   y_input_path,
-                   start_position,
-                   data_window_size,
-                   window_size,
-                   data_size,
-                   window_stride_size,
-                   output_path,
-                   output_path)
+    if not passthrough_bool:
+        if apply_bool:
+            test_model(model,
+                       x_input_path,
+                       y_input_path,
+                       start_position,
+                       data_window_size,
+                       window_size,
+                       data_size,
+                       window_stride_size,
+                       output_path,
+                       output_path)
 
     return model, start_position, out_of_bounds_bool
 
@@ -224,7 +324,7 @@ def test_model(input_model,
 
     difference_matrix = output - y_test
     difference_vector = np.abs(difference_matrix.flatten())
-    
+
     print("Max difference: " + str(difference_vector.max()))
     print("Mean difference: " + str(difference_vector.mean()))
 
@@ -258,12 +358,18 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def downsample_and_rescale(input_path, output_path):
+def downsample_and_rescale(input_path, tof_bool, output_path):
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
-        data_array = np.mean(data.get(list(data.keys())[3]), 3).T
 
-        data_array = rescale_linear(np.asfarray(data_array), 0, 1.0)
+        data_array = data.get(list(data.keys())[3])
+
+        if not tof_bool:
+            data_array = np.mean(data_array, 3)
+
+        data_array = data_array.T
+
+        data_array = scipy.stats.zscore(np.asfarray(data_array))
 
         np.save(output_path[i], data_array)
 
@@ -283,6 +389,8 @@ def rescale(input_path, output_path):
 
 def main(fit_model_bool, while_bool, load_bool):
     single_input_bool = True
+    tof_bool = False
+    stochastic_bool = True
 
     output_path = "./results/"
 
@@ -348,17 +456,24 @@ def main(fit_model_bool, while_bool, load_bool):
                             "estimated_signal_19.csv",
                             "estimated_signal_20.csv"]
 
-    downsample_and_rescale(x_path_orig_list, x_path_list)
+    downsample_and_rescale(x_path_orig_list, tof_bool, x_path_list)
     rescale(y_path_orig_list, y_path_list)
 
     window_size = 40
     window_stride_size = window_size
-    data_window_size = window_size * 5
+
+    if tof_bool:
+        data_window_size = window_size
+    else:
+        data_window_size = window_size * 5
+
     data_window_stride_size = data_window_size
 
     if fit_model_bool:
         window_stride_size = 1
-        epoch_size = 20
+
+        passthrough_bool = False
+        epochs = 6
 
         if load_bool:
             with open(output_path + "/path_start_point", "r") as file:
@@ -412,7 +527,10 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 data_size,
                                                                                 window_stride_size,
                                                                                 output_path,
-                                                                                epoch_size)
+                                                                                tof_bool,
+                                                                                stochastic_bool,
+                                                                                passthrough_bool,
+                                                                                epochs)
 
                     with open(output_path + "/data_start_point", "w") as file:
                         file.write(str(j))
@@ -441,9 +559,9 @@ def main(fit_model_bool, while_bool, load_bool):
         print("Load model from file")
 
         model = k.models.load_model(output_path + "/model.h5")
-        
+
         path_length = len(x_path_list)
-        
+
         for i in range(path_length):
             print("Path: " + str(i) + "/" + str(path_length))
 

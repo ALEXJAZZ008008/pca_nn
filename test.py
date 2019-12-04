@@ -150,8 +150,8 @@ def test_module_rnn(x, units, activation, return_sequences, initializer, unroll)
                            activation=activation,
                            recurrent_activation=activation,
                            return_sequences=return_sequences,
-                           dropout=0.5,
-                           recurrent_dropout=0.5,
+                           dropout=0.25,
+                           recurrent_dropout=0.25,
                            kernel_initializer=initializer,
                            bias_initializer=k.initializers.Constant(0.0),
                            recurrent_initializer=initializer,
@@ -165,8 +165,8 @@ def test_module_lstm(x, units, activation, return_sequences, initializer, unroll
                       activation=activation,
                       recurrent_activation=activation,
                       return_sequences=return_sequences,
-                      dropout=0.5,
-                      recurrent_dropout=0.5,
+                      dropout=0.25,
+                      recurrent_dropout=0.25,
                       kernel_initializer=initializer,
                       bias_initializer=k.initializers.Constant(0.0),
                       recurrent_initializer=initializer,
@@ -180,8 +180,8 @@ def test_module_gru(x, units, activation, return_sequences, initializer, unroll)
                      activation=activation,
                      recurrent_activation=activation,
                      return_sequences=return_sequences,
-                     dropout=0.5,
-                     recurrent_dropout=0.5,
+                     dropout=0.25,
+                     recurrent_dropout=0.25,
                      kernel_initializer=initializer,
                      bias_initializer=k.initializers.Constant(0.0),
                      recurrent_initializer=initializer,
@@ -191,32 +191,33 @@ def test_module_gru(x, units, activation, return_sequences, initializer, unroll)
 
 
 def test_rnn(x, tof_bool, layers, rnn_type, units, activation, initializer, unroll):
-    if tof_bool:
-        x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4],
-                   x.shape.as_list()[5]]
+    if layers > 0:
+        if tof_bool:
+            x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4],
+                       x.shape.as_list()[5]]
 
-        x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3] * x.shape.as_list()[4],
-                              x.shape.as_list()[5]))(x)
-    else:
-        x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4]]
-
-        x = k.layers.Reshape(
-            (x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
-
-    for _ in range(layers):
-        if rnn_type == "rnn":
-            x = test_module_rnn(x, units, activation, True, initializer, unroll)
+            x = k.layers.Reshape((x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3] * x.shape.as_list()[4],
+                                  x.shape.as_list()[5]))(x)
         else:
-            if rnn_type == "lstm":
-                x = test_module_lstm(x, units, activation, True, initializer, unroll)
-            else:
-                if rnn_type == "gru":
-                    x = test_module_gru(x, units, activation, True, initializer, unroll)
+            x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4]]
 
-    if tof_bool:
-        x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3], x_shape[4]))(x)
-    else:
-        x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3]))(x)
+            x = k.layers.Reshape(
+                (x.shape.as_list()[1] * x.shape.as_list()[2] * x.shape.as_list()[3], x.shape.as_list()[4]))(x)
+
+        for _ in range(layers):
+            if rnn_type == "rnn":
+                x = test_module_rnn(x, units, activation, True, initializer, unroll)
+            else:
+                if rnn_type == "lstm":
+                    x = test_module_lstm(x, units, activation, True, initializer, unroll)
+                else:
+                    if rnn_type == "gru":
+                        x = test_module_gru(x, units, activation, True, initializer, unroll)
+
+        if tof_bool:
+            x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3], x_shape[4]))(x)
+        else:
+            x = k.layers.Reshape((x_shape[0], x_shape[1], x_shape[2], x_shape[3]))(x)
 
     return x
 
@@ -242,8 +243,7 @@ def test_module_rnn_out(x, tof_bool, rnn_type, units, activation, initializer, u
 
 
 def test_rnn_out(x, tof_bool, layers, rnn_type, units, activation, initializer, unroll):
-    if layers > 0:
-        x = test_rnn(x, tof_bool, layers, rnn_type, units, activation, initializer, unroll)
+    x = test_rnn(x, tof_bool, layers, rnn_type, units, activation, initializer, unroll)
 
     x = test_module_rnn_out(x, tof_bool, rnn_type, units, activation, initializer, unroll)
 
@@ -277,23 +277,23 @@ def test_in_down_rnn_out(x, filters, initializer, batch_normalisation_bool, acti
     return x
 
 
-def test_in_rnn_down_rnn_out(x, filters, initializer, tof_bool, layers, rnn_type, units, rnn_activation,
-                             rnn_initializer, batch_normalisation_bool,
-                             activation, unroll):
+def test_in_rnn_down_rnn_out(x, filters, initializer, tof_bool, in_layers, rnn_type, units, rnn_activation,
+                             rnn_initializer, in_unroll, batch_normalisation_bool,
+                             activation, out_layers, out_unroll):
     x = test_module_in(x, filters, initializer)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, in_layers, rnn_type, units, rnn_activation, rnn_initializer, in_unroll)
 
-    x = test_washer(x, filters, batch_normalisation_bool, initializer, activation)
+    x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
     x, x_shortcut_1, x_shortcut_2, x_shortcut_3, x_shortcut_4, x_shortcut_5, x_shortcut_6, x_shortcut_7 = test_down(x,
                                                                                                                     initializer,
                                                                                                                     batch_normalisation_bool,
                                                                                                                     activation)
 
-    x = test_washer(x, filters, batch_normalisation_bool, initializer, activation)
+    x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, out_layers, rnn_type, units, rnn_activation, rnn_initializer, out_unroll)
 
     x = test_module_out(x, filters, initializer, batch_normalisation_bool, activation)
 
@@ -561,12 +561,12 @@ def test_in_down_up_rnn_out(x, filters, initializer, batch_normalisation_bool, a
     return x
 
 
-def test_in_rnn_down_up_rnn_out(x, filters, initializer, tof_bool, layers, rnn_type, units, rnn_activation,
-                                rnn_initializer, batch_normalisation_bool,
-                                activation, unroll):
+def test_in_rnn_down_up_rnn_out(x, filters, initializer, tof_bool, in_layers, rnn_type, units, rnn_activation,
+                                rnn_initializer, in_unroll, batch_normalisation_bool,
+                                activation, out_layers, out_unroll):
     x = test_module_in(x, filters, initializer)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, in_layers, rnn_type, units, rnn_activation, rnn_initializer, in_unroll)
 
     x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
@@ -589,7 +589,7 @@ def test_in_rnn_down_up_rnn_out(x, filters, initializer, tof_bool, layers, rnn_t
 
     x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, out_layers, rnn_type, units, rnn_activation, rnn_initializer, out_unroll)
 
     x = test_module_out(x, filters, initializer, batch_normalisation_bool, activation)
 
@@ -665,12 +665,12 @@ def test_in_down_up_down_rnn_out(x, filters, initializer, batch_normalisation_bo
     return x
 
 
-def test_in_rnn_down_up_down_rnn_out(x, filters, initializer, tof_bool, layers, rnn_type, units, rnn_activation,
-                                     rnn_initializer,
-                                     batch_normalisation_bool, activation, unroll):
+def test_in_rnn_down_up_down_rnn_out(x, filters, initializer, tof_bool, in_layers, rnn_type, units, rnn_activation,
+                                     rnn_initializer, in_unroll,
+                                     batch_normalisation_bool, activation, out_layers, out_unroll):
     x = test_module_in(x, filters, initializer)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, in_layers, rnn_type, units, rnn_activation, rnn_initializer, in_unroll)
 
     x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
@@ -700,7 +700,7 @@ def test_in_rnn_down_up_down_rnn_out(x, filters, initializer, tof_bool, layers, 
 
     x = test_washer(x, filters, initializer, batch_normalisation_bool, activation)
 
-    x = test_rnn(x, tof_bool, layers, rnn_type, units, rnn_activation, rnn_initializer, unroll)
+    x = test_rnn(x, tof_bool, out_layers, rnn_type, units, rnn_activation, rnn_initializer, out_unroll)
 
     x = test_module_out(x, filters, initializer, batch_normalisation_bool, activation)
 

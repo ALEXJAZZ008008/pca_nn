@@ -9,6 +9,7 @@ import scipy.stats
 
 import network
 import test
+import test_2
 
 
 def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -34,7 +35,7 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
     for i in range(start_position, start_position + data_window_size, window_stride_size):
         x_window = []
 
-        stochastic_i = randint(0, data_size)
+        stochastic_i = randint(0, (data_size - window_size) - 1)
 
         print("stochastic_i: " + str(stochastic_i))
 
@@ -47,7 +48,7 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
                     break
 
-            x_window.append(sinos_array[i + j])
+            x_window.append(sinos_array[stochastic_i + j])
 
         if data_load_out_of_bounds_bool:
             break
@@ -80,7 +81,7 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
 
                     break
 
-            y_window.append(test_array[i + j])
+            y_window.append(test_array[stochastic_i_list[i] + j])
 
         if data_load_out_of_bounds_bool:
             break
@@ -217,15 +218,25 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            # x = test.test_in_down_up_out(input_x, 40, "he_uniform", True, "relu")
-            x = test.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "hard_sigmoid", "lecun_normal", False)
+            # x = test.test_in_down_out(input_x, 40, "he_uniform", True, "prelu")
+            # x = test.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "hard_sigmoid", "glorot_uniform", False)
+            # x = test.test_in_rnn_down_rnn_out(input_x, 40, "he_uniform", tof_bool, 2, "lstm", 40, "hard_sigmoid", "glorot_uniform", False, True, "prelu", 7, True)
+
+            # x = test_2.test_in_down_out(input_x, "relu", 40, "he_uniform", 5, True)
+            x = test_2.test_in_down_rnn_out(input_x, "relu", 40, "he_uniform", 5, True, tof_bool, 0, "lstm", 40, "hard_sigmoid", "glorot_uniform", True)
 
             x = network.output_module(x, output_size, "tanh", "lecun_normal")
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            model.compile(optimizer=k.optimizers.Adagrad(),
+            lr = 0.01
+
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0,
+                                                     clipvalue=0.5),
                           loss=k.losses.mean_squared_error)
+
+            with open(output_path + "/lr", "w") as file:
+                file.write(str(lr))
     else:
         print("Using input model")
 
@@ -239,14 +250,25 @@ def fit_model(input_model,
     if not passthrough_bool:
         print("Fitting model")
 
-        batch_size = 10
+        with open(output_path + "/lr", "r") as file:
+            lr = float(file.read())
 
-        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1)
+        k.backend.set_value(model.optimizer.lr, lr)
 
-        loss = model.evaluate(x_train, y_train, batch_size=batch_size, verbose=1)
+        print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
-        print("Metrics: ", model.metrics_names)
-        print("Train loss, acc:", loss)
+        batch_size = 1
+
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.99, patience=1, verbose=1, cooldown=1)
+
+        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
+        
+        lr = k.backend.get_value(model.optimizer.lr)
+
+        with open(output_path + "/lr", "w") as file:
+            file.write(str(lr))
+
+        print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
     if save_bool:
         print("Saving model")
@@ -349,16 +371,18 @@ def test_model(input_model,
     return output, start_position, out_of_bounds_bool
 
 
-# https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
-def rescale_linear(array, new_min, new_max):
-    """Rescale an arrary linearly."""
-    minimum, maximum = np.min(array), np.max(array)
-    m = (new_max - new_min) / (maximum - minimum)
-    b = new_min - m * minimum
-    return m * array + b
+def histogram_equalisation(data_array, number_of_bins):
+    hist, bins = np.histogram(data_array.flatten(), number_of_bins, density=True)
+
+    cdf = hist.cumsum()
+    cdf = 255 * cdf / cdf[-1]  # normalize
+
+    output = np.interp(data_array.flatten(), bins[:-1], cdf).reshape(data_array.shape)
+
+    return output
 
 
-def downsample_and_rescale(input_path, tof_bool, output_path):
+def downsample_histogram_equalisation_and_zscore(input_path, tof_bool, number_of_bins, output_path):
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
 
@@ -369,9 +393,36 @@ def downsample_and_rescale(input_path, tof_bool, output_path):
 
         data_array = data_array.T
 
-        data_array = scipy.stats.zscore(np.asfarray(data_array))
+        data_array = histogram_equalisation(data_array, number_of_bins)
 
-        np.save(output_path[i], data_array)
+        data_array = scipy.stats.zscore(data_array)
+
+        np.save(output_path[i], data_array.astype(np.float32))
+
+
+def downsample_and_zscore(input_path, tof_bool, output_path):
+    for i in range(len(input_path)):
+        data = scipy.io.loadmat(input_path[i])
+
+        data_array = data.get(list(data.keys())[3])
+
+        if not tof_bool:
+            data_array = np.mean(data_array, 3)
+
+        data_array = data_array.T
+
+        data_array = scipy.stats.zscore(data_array)
+
+        np.save(output_path[i], data_array.astype(np.float32))
+
+
+# https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
+def rescale_linear(array, new_min, new_max):
+    """Rescale an arrary linearly."""
+    minimum, maximum = np.min(array), np.max(array)
+    m = (new_max - new_min) / (maximum - minimum)
+    b = new_min - m * minimum
+    return m * array + b
 
 
 def rescale(input_path, output_path):
@@ -381,16 +432,19 @@ def rescale(input_path, output_path):
         data = scipy.io.loadmat(input_path[i])
         data_array.append(data.get(list(data.keys())[3]))
 
-    data_array = rescale_linear(np.asfarray(data_array), -1.0, 1.0)
+    data_array = rescale_linear(np.asfarray(data_array), 0.0, 1.0)
 
     for i in range(len(data_array)):
         np.save(output_path[i], data_array[i])
 
 
 def main(fit_model_bool, while_bool, load_bool):
+    passthrough_bool = False
     single_input_bool = True
     tof_bool = False
     stochastic_bool = True
+
+    number_of_bins = 1000000
 
     output_path = "./results/"
 
@@ -456,8 +510,12 @@ def main(fit_model_bool, while_bool, load_bool):
                             "estimated_signal_19.csv",
                             "estimated_signal_20.csv"]
 
-    downsample_and_rescale(x_path_orig_list, tof_bool, x_path_list)
+    print("Getting data")
+
+    downsample_histogram_equalisation_and_zscore(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
     rescale(y_path_orig_list, y_path_list)
+
+    print("Got data")
 
     window_size = 40
     window_stride_size = window_size
@@ -465,15 +523,13 @@ def main(fit_model_bool, while_bool, load_bool):
     if tof_bool:
         data_window_size = window_size
     else:
-        data_window_size = window_size * 5
+        data_window_size = window_size * 10
 
     data_window_stride_size = data_window_size
 
     if fit_model_bool:
         window_stride_size = 1
-
-        passthrough_bool = False
-        epochs = 6
+        epochs = 2
 
         if load_bool:
             with open(output_path + "/path_start_point", "r") as file:
@@ -514,6 +570,9 @@ def main(fit_model_bool, while_bool, load_bool):
 
                     print("Data: " + str(j) + "/" + str(data_size))
 
+                    out_of_bounds_bool = True
+
+                    # try:
                     while_model, start_position, out_of_bounds_bool = fit_model(while_model,
                                                                                 True,
                                                                                 load_bool,
@@ -531,6 +590,8 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 stochastic_bool,
                                                                                 passthrough_bool,
                                                                                 epochs)
+                    # except:
+                    # print("Error fitting model: continuing")
 
                     with open(output_path + "/data_start_point", "w") as file:
                         file.write(str(j))
@@ -621,7 +682,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
                             output_array[i] = output_array[i] * -1
 
-            output = np.nanmean(np.asfarray(output_array), axis=0)
+            output = scipy.stats.zscore(np.nanmean(np.asfarray(output_array), axis=0))
 
             with open("./results/" + output_file_name[i], "w") as file:
                 write_to_file(file, output.reshape(output.size, 1))
@@ -630,4 +691,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(True, True, False)

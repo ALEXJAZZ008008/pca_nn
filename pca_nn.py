@@ -37,8 +37,6 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
         stochastic_i = randint(0, (data_size - window_size) - 1)
 
-        print("stochastic_i: " + str(stochastic_i))
-
         stochastic_i_list.append(stochastic_i)
 
         for j in range(window_size):
@@ -48,16 +46,17 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
                     break
 
-            x_window.append(sinos_array[stochastic_i + j])
+            x_window.append(sinos_array[stochastic_i + j].T)
 
         if data_load_out_of_bounds_bool:
             break
 
-        x.append(np.asfarray(x_window).T)
+        x.append(np.asfarray(x_window))
 
     print("Got x")
 
-    return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool, stochastic_i_list
+    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(
+        np.float32), start_position, out_of_bounds_bool, stochastic_i_list
 
 
 def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list):
@@ -71,8 +70,6 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
 
     for i in range(len(stochastic_i_list)):
         y_window = []
-
-        print("stochastic_i: " + str(stochastic_i_list[i]))
 
         for j in range(window_size):
             if out_of_bounds_bool:
@@ -119,16 +116,16 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
                     break
 
-            x_window.append(sinos_array[i + j])
+            x_window.append(sinos_array[i + j].T)
 
         if data_load_out_of_bounds_bool:
             break
 
-        x.append(np.asfarray(x_window).T)
+        x.append(np.asfarray(x_window))
 
     print("Got x")
 
-    return np.nan_to_num(np.asfarray(x)).astype(np.float32), start_position, out_of_bounds_bool
+    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(np.float32), start_position, out_of_bounds_bool
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size, out_of_bounds_bool):
@@ -218,18 +215,14 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            # x = test.test_in_down_out(input_x, 40, "he_uniform", True, "prelu")
-            # x = test.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "hard_sigmoid", "glorot_uniform", False)
-            # x = test.test_in_rnn_down_rnn_out(input_x, 40, "he_uniform", tof_bool, 2, "lstm", 40, "hard_sigmoid", "glorot_uniform", False, True, "prelu", 7, True)
+            x = test_2.test_in_down_out(input_x, "relu", 18, "he_uniform", 5, True)
+            # x = test_2.test_in_down_rnn_out(input_x, "relu", 19, "he_uniform", 5, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", True)
 
-            # x = test_2.test_in_down_out(input_x, "relu", 40, "he_uniform", 5, True)
-            x = test_2.test_in_down_rnn_out(input_x, "relu", 40, "he_uniform", 5, True, tof_bool, 0, "lstm", 40, "hard_sigmoid", "glorot_uniform", True)
-
-            x = network.output_module(x, output_size, "tanh", "lecun_normal")
+            x = network.output_module(x, output_size, "linear", "glorot_uniform")
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            lr = 0.01
+            lr = 0.001
 
             model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0,
                                                      clipvalue=0.5),
@@ -237,6 +230,11 @@ def fit_model(input_model,
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
+
+            batch_size = 10
+
+            with open(output_path + "/batch_size", "w") as file:
+                file.write(str(batch_size))
     else:
         print("Using input model")
 
@@ -257,16 +255,24 @@ def fit_model(input_model,
 
         print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
-        batch_size = 1
+        with open(output_path + "/batch_size", "r") as file:
+            batch_size = int(file.read())
 
         reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.99, patience=1, verbose=1, cooldown=1)
 
         model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
-        
-        lr = k.backend.get_value(model.optimizer.lr)
 
-        with open(output_path + "/lr", "w") as file:
-            file.write(str(lr))
+        output_lr = k.backend.get_value(model.optimizer.lr)
+
+        if output_lr < lr:
+            with open(output_path + "/lr", "w") as file:
+                file.write(str(output_lr))
+
+            batch_size = batch_size + 1
+
+            if batch_size < 10:
+                with open(output_path + "/batch_size", "w") as file:
+                    file.write(str(batch_size))
 
         print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
@@ -362,8 +368,8 @@ def test_model(input_model,
     absolute_difference = sum(boolean_difference)
 
     print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * window_size))
-    print("Relative boolean difference: " + str(((float(absolute_difference) / float(window_size)) / float(len(y_test)))
-                                                * float(100)) + "%")
+    print("Relative boolean difference: " + str(
+        (float(100) - (((float(absolute_difference) / float(window_size)) / float(len(y_test))) * float(100)))) + "%")
 
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)
@@ -407,7 +413,7 @@ def downsample_and_zscore(input_path, tof_bool, output_path):
         data_array = data.get(list(data.keys())[3])
 
         if not tof_bool:
-            data_array = np.mean(data_array, 3)
+            data_array = np.nanmean(data_array, 3)
 
         data_array = data_array.T
 
@@ -426,19 +432,19 @@ def rescale_linear(array, new_min, new_max):
 
 
 def rescale(input_path, output_path):
-    data_array = []
-
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
-        data_array.append(data.get(list(data.keys())[3]))
+        data_array = data.get(list(data.keys())[3])
 
-    data_array = rescale_linear(np.asfarray(data_array), 0.0, 1.0)
+        data_array = scipy.stats.zscore(data_array)
 
-    for i in range(len(data_array)):
-        np.save(output_path[i], data_array[i])
+        np.save(output_path[i], data_array.astype(np.float32))
 
 
 def main(fit_model_bool, while_bool, load_bool):
+    save_bool = True
+    plot_bool = True
+    apply_bool = False
     passthrough_bool = False
     single_input_bool = True
     tof_bool = False
@@ -452,8 +458,8 @@ def main(fit_model_bool, while_bool, load_bool):
         x_path_orig_list = ["./normalised_sinos_1.mat"]
         y_path_orig_list = ["./output_signal_1.mat"]
 
-        x_path_list = ["normalised_sinos_downsample_and_rescale_1.npy"]
-        y_path_list = ["output_signal_rescaled_1.npy"]
+        x_path_list = ["normalised_sinos_preprocessed_1.npy"]
+        y_path_list = ["output_signal_preprocessed_1.npy"]
 
         output_file_name = ["estimated_signal_1.csv"]
     else:
@@ -478,26 +484,26 @@ def main(fit_model_bool, while_bool, load_bool):
                             "./output_signal_19.mat",
                             "./output_signal_20.mat"]
 
-        x_path_list = ["normalised_sinos_downsample_and_rescale_1.npy",
-                       "normalised_sinos_downsample_and_rescale_3.npy",
-                       "normalised_sinos_downsample_and_rescale_5.npy",
-                       "normalised_sinos_downsample_and_rescale_6.npy",
-                       "normalised_sinos_downsample_and_rescale_7.npy",
-                       "normalised_sinos_downsample_and_rescale_8.npy",
-                       "normalised_sinos_downsample_and_rescale_9.npy",
-                       "normalised_sinos_downsample_and_rescale_15.npy",
-                       "normalised_sinos_downsample_and_rescale_19.npy",
-                       "normalised_sinos_downsample_and_rescale_20.npy"]
-        y_path_list = ["output_signal_rescaled_1.npy",
-                       "output_signal_rescaled_3.npy",
-                       "output_signal_rescaled_5.npy",
-                       "output_signal_rescaled_6.npy",
-                       "output_signal_rescaled_7.npy",
-                       "output_signal_rescaled_8.npy",
-                       "output_signal_rescaled_9.npy",
-                       "output_signal_rescaled_15.npy",
-                       "output_signal_rescaled_19.npy",
-                       "output_signal_rescaled_20.npy"]
+        x_path_list = ["normalised_sinos_preprocessed_1.npy",
+                       "normalised_sinos_preprocessed_3.npy",
+                       "normalised_sinos_preprocessed_5.npy",
+                       "normalised_sinos_preprocessed_6.npy",
+                       "normalised_sinos_preprocessed_7.npy",
+                       "normalised_sinos_preprocessed_8.npy",
+                       "normalised_sinos_preprocessed_9.npy",
+                       "normalised_sinos_preprocessed_15.npy",
+                       "normalised_sinos_preprocessed_19.npy",
+                       "normalised_sinos_preprocessed_20.npy"]
+        y_path_list = ["output_signal_preprocessed_1.npy",
+                       "output_signal_preprocessed_3.npy",
+                       "output_signal_preprocessed_5.npy",
+                       "output_signal_preprocessed_6.npy",
+                       "output_signal_preprocessed_7.npy",
+                       "output_signal_preprocessed_8.npy",
+                       "output_signal_preprocessed_9.npy",
+                       "output_signal_preprocessed_15.npy",
+                       "output_signal_preprocessed_19.npy",
+                       "output_signal_preprocessed_20.npy"]
 
         output_file_name = ["estimated_signal_1.csv",
                             "estimated_signal_3.csv",
@@ -574,10 +580,10 @@ def main(fit_model_bool, while_bool, load_bool):
 
                     # try:
                     while_model, start_position, out_of_bounds_bool = fit_model(while_model,
-                                                                                True,
+                                                                                save_bool,
                                                                                 load_bool,
-                                                                                True,
-                                                                                True,
+                                                                                plot_bool,
+                                                                                apply_bool,
                                                                                 x_path_list[i],
                                                                                 y_path_list[i],
                                                                                 j,

@@ -215,14 +215,15 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = test_2.test_in_down_out(input_x, "relu", 18, "he_uniform", 5, True)
-            # x = test_2.test_in_down_rnn_out(input_x, "relu", 19, "he_uniform", 5, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", True)
+            x = test_2.test_in_down_out(input_x, "relu", 15, "he_uniform", 7, True)
+            # x = test_2.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_rnn_out(input_x, "relu", 19, "he_uniform", 5, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
 
             x = network.output_module(x, output_size, "linear", "glorot_uniform")
 
             model = k.Model(inputs=input_x, outputs=x)
 
-            lr = 0.001
+            lr = 0.01
 
             model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0,
                                                      clipvalue=0.5),
@@ -231,7 +232,7 @@ def fit_model(input_model,
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
 
-            batch_size = 10
+            batch_size = 1
 
             with open(output_path + "/batch_size", "w") as file:
                 file.write(str(batch_size))
@@ -270,7 +271,7 @@ def fit_model(input_model,
 
             batch_size = batch_size + 1
 
-            if batch_size < 10:
+            if batch_size <= 20:
                 with open(output_path + "/batch_size", "w") as file:
                     file.write(str(batch_size))
 
@@ -369,7 +370,7 @@ def test_model(input_model,
 
     print("Absolute boolean difference: " + str(absolute_difference) + "/" + str(len(y_test) * window_size))
     print("Relative boolean difference: " + str(
-        (float(100) - (((float(absolute_difference) / float(window_size)) / float(len(y_test))) * float(100)))) + "%")
+        (((float(absolute_difference) / float(window_size)) / float(len(y_test))) * float(100))) + "%")
 
     with open(output_path + "/difference.csv", "w") as file:
         write_to_file(file, difference_matrix)

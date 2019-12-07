@@ -24,7 +24,7 @@ def test_module_in(x, activation, filters, initializer):
                                    bias_regularizer=k.regularizers.l2(0.01),
                                    kernel_constraint=k.constraints.max_norm(3),
                                    bias_constraint=k.constraints.max_norm(3))(x)
-        x = test_activation(x, True, "hard_sigmoid")
+        x = test_activation(x, True, "relu")
         x = k.layers.AlphaDropout(0.5)(x)
 
     return x
@@ -46,7 +46,7 @@ def test_module_down(x, filters, initializer, batch_normalisation_bool, activati
 
     x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                         kernel_size=(3, 3, 3),
-                                                        strides=(3, 3, 3),
+                                                        strides=(2, 2, 2),
                                                         padding="same",
                                                         kernel_initializer=initializer,
                                                         bias_initializer=k.initializers.Constant(0.1),
@@ -88,10 +88,10 @@ def test_module_rnn(x, units, activation, return_sequences, initializer, unroll)
                            activation=activation,
                            recurrent_activation=activation,
                            return_sequences=return_sequences,
-                           dropout=0.5,
-                           recurrent_dropout=0.5,
+                           dropout=0.25,
+                           recurrent_dropout=0.25,
                            kernel_initializer=initializer,
-                           bias_initializer=k.initializers.Constant(0.0),
+                           bias_initializer=k.initializers.Constant(0.1),
                            recurrent_initializer=initializer,
                            kernel_regularizer=k.regularizers.l2(0.01),
                            bias_regularizer=k.regularizers.l2(0.01),
@@ -109,10 +109,10 @@ def test_module_lstm(x, units, activation, return_sequences, initializer, unroll
                       activation=activation,
                       recurrent_activation=activation,
                       return_sequences=return_sequences,
-                      dropout=0.5,
-                      recurrent_dropout=0.5,
+                      dropout=0.25,
+                      recurrent_dropout=0.25,
                       kernel_initializer=initializer,
-                      bias_initializer=k.initializers.Constant(0.0),
+                      bias_initializer=k.initializers.Constant(0.1),
                       recurrent_initializer=initializer,
                       kernel_regularizer=k.regularizers.l2(0.01),
                       bias_regularizer=k.regularizers.l2(0.01),
@@ -130,10 +130,10 @@ def test_module_gru(x, units, activation, return_sequences, initializer, unroll)
                      activation=activation,
                      recurrent_activation=activation,
                      return_sequences=return_sequences,
-                     dropout=0.5,
-                     recurrent_dropout=0.5,
+                     dropout=0.25,
+                     recurrent_dropout=0.25,
                      kernel_initializer=initializer,
-                     bias_initializer=k.initializers.Constant(0.0),
+                     bias_initializer=k.initializers.Constant(0.1),
                      recurrent_initializer=initializer,
                      kernel_regularizer=k.regularizers.l2(0.01),
                      bias_regularizer=k.regularizers.l2(0.01),
@@ -152,12 +152,16 @@ def test_rnn(x, tof_bool, layers, rnn_type, units, activation, initializer, unro
             x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4],
                        x.shape.as_list()[5], x.shape.as_list()[6]]
 
-            x = k.layers.TimeDistributed(k.layers.Flatten())(x)
+            x = k.layers.Reshape((x.shape.as_list()[1],
+                                  x.shape.as_list()[2] * x.shape.as_list()[3] * x.shape.as_list()[4] *
+                                  x.shape.as_list()[5] * x.shape.as_list()[6]))(x)
         else:
             x_shape = [x.shape.as_list()[1], x.shape.as_list()[2], x.shape.as_list()[3], x.shape.as_list()[4],
                        x.shape.as_list()[5]]
 
-            x = k.layers.TimeDistributed(k.layers.Flatten())(x)
+            x = k.layers.Reshape((x.shape.as_list()[1],
+                                  x.shape.as_list()[2] * x.shape.as_list()[3] * x.shape.as_list()[4] *
+                                  x.shape.as_list()[5]))(x)
 
         for _ in range(layers - 1):
             if rnn_type == "rnn":
@@ -181,7 +185,9 @@ def test_module_rnn_out(x, tof_bool, rnn_type, units, activation, initializer, u
     if tof_bool:
         x = k.layers.TimeDistributed(k.layers.Flatten())(x)
     else:
-        x = k.layers.TimeDistributed(k.layers.Flatten())(x)
+        x = k.layers.Reshape((x.shape.as_list()[1],
+                              x.shape.as_list()[2] * x.shape.as_list()[3] * x.shape.as_list()[4] *
+                              x.shape.as_list()[5]))(x)
 
     if rnn_type == "rnn":
         x = test_module_rnn(x, units, activation, False, initializer, unroll)

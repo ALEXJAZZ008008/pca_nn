@@ -2,6 +2,7 @@ from __future__ import division, print_function
 from random import seed
 from random import randint
 import time
+import math
 import keras as k
 import numpy as np
 import scipy.io
@@ -166,6 +167,7 @@ def fit_model(input_model,
               apply_bool,
               x_input_path,
               y_input_path,
+              path,
               start_position,
               data_window_size,
               window_size,
@@ -175,7 +177,9 @@ def fit_model(input_model,
               tof_bool,
               stochastic_bool,
               passthrough_bool,
-              epochs):
+              epochs,
+              output_all_bool,
+              number_of_bins):
     print("Get training data")
 
     if stochastic_bool:
@@ -215,19 +219,28 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            x = test_2.test_in_down_out(input_x, "relu", 15, "he_uniform", 7, True)
+            # x = test_2.test_in_down_out(input_x, "relu", 21, "he_uniform", 7, True)
             # x = test_2.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
-            # x = test_2.test_in_down_rnn_out(input_x, "relu", 19, "he_uniform", 5, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_rnn_out(input_x, "relu", 24, "he_uniform", 7, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
 
-            x = network.output_module(x, output_size, "linear", "glorot_uniform")
+            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", False, 21, "he_uniform", 7, True)
+            x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 24, "he_uniform", 7, True, tof_bool, 7, "rnn", 40, "relu", "he_uniform", False)
 
-            model = k.Model(inputs=input_x, outputs=x)
+            # x = network.output_module(x, output_size, "glorot_uniform", "linear")
+
+            x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
+            x_2 = network.output_module_2(x_2, "glorot_uniform", "linear")
+
+            # model = k.Model(inputs=input_x, outputs=x)
+
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0,
-                                                     clipvalue=0.5),
-                          loss=k.losses.mean_squared_error)
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=5.0), loss=k.losses.mean_squared_error)
+
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=5.0), loss=k.losses.mean_squared_error)
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -259,9 +272,12 @@ def fit_model(input_model,
         with open(output_path + "/batch_size", "r") as file:
             batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.99, patience=1, verbose=1, cooldown=1)
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, cooldown=1)
+        tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
+        # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = k.backend.get_value(model.optimizer.lr)
 
@@ -271,7 +287,9 @@ def fit_model(input_model,
 
             batch_size = batch_size + 1
 
-            if batch_size <= 20:
+            # if batch_size <= 20:
+
+            if batch_size <= 3:
                 with open(output_path + "/batch_size", "w") as file:
                     file.write(str(batch_size))
 
@@ -287,13 +305,16 @@ def fit_model(input_model,
             test_model(model,
                        x_input_path,
                        y_input_path,
+                       path,
                        start_position,
                        data_window_size,
                        window_size,
                        data_size,
                        window_stride_size,
                        output_path,
-                       output_path)
+                       output_path,
+                       output_all_bool,
+                       number_of_bins)
 
     return model, start_position, out_of_bounds_bool
 
@@ -313,13 +334,16 @@ def write_to_file(file, data):
 def test_model(input_model,
                x_input_path,
                y_input_path,
+               path,
                start_position,
                data_window_size,
                window_size,
                data_size,
                window_stride_size,
                model_input_path,
-               output_path):
+               output_path,
+               output_all_bool,
+               number_of_bins):
     print("Get test data")
 
     x_test, start_position, out_of_bounds_bool = get_x(x_input_path,
@@ -348,6 +372,17 @@ def test_model(input_model,
 
     output = model.predict(x_test)
 
+    if len(output) > 1:
+        if output_all_bool:
+            for i in range(len(output[1])):
+                downsample_histogram_equalisation_and_zscore_input_data(output[1], number_of_bins,
+                                                                        output_path + "/test_estimated_input_" + str(
+                                                                            path) + "_" + str(
+                                                                            start_position) + "_" + str(
+                                                                            i))
+
+        output = output[0]
+
     with open(output_path + "/test_estimated_signal.csv", "w") as file:
         write_to_file(file, output)
 
@@ -361,7 +396,7 @@ def test_model(input_model,
 
     for i in range(len(output)):
         for j in range(len(output[i])):
-            if abs(output[i][j] - y_test[i][j]) < 2.0 / 50.0:
+            if abs(output[i][j] - y_test[i][j]) < (np.max(y_test) - np.min(y_test)) / 10.0:
                 boolean_difference.append(np.array(0))
             else:
                 boolean_difference.append(np.array(1))
@@ -387,6 +422,14 @@ def histogram_equalisation(data_array, number_of_bins):
     output = np.interp(data_array.flatten(), bins[:-1], cdf).reshape(data_array.shape)
 
     return output
+
+
+def downsample_histogram_equalisation_and_zscore_input_data(input_data, number_of_bins, output_path):
+    data_array = histogram_equalisation(input_data, number_of_bins)
+
+    data_array = scipy.stats.zscore(data_array)
+
+    np.save(output_path, data_array.astype(np.float32))
 
 
 def downsample_histogram_equalisation_and_zscore(input_path, tof_bool, number_of_bins, output_path):
@@ -451,6 +494,7 @@ def main(fit_model_bool, while_bool, load_bool):
     tof_bool = False
     stochastic_bool = True
 
+    output_all_bool = False
     number_of_bins = 1000000
 
     output_path = "./results/"
@@ -462,7 +506,7 @@ def main(fit_model_bool, while_bool, load_bool):
         x_path_list = ["normalised_sinos_preprocessed_1.npy"]
         y_path_list = ["output_signal_preprocessed_1.npy"]
 
-        output_file_name = ["estimated_signal_1.csv"]
+        output_file_name = ["estimated_signal_1"]
     else:
         x_path_orig_list = ["./normalised_sinos_1.mat",
                             "./normalised_sinos_3.mat",
@@ -506,16 +550,18 @@ def main(fit_model_bool, while_bool, load_bool):
                        "output_signal_preprocessed_19.npy",
                        "output_signal_preprocessed_20.npy"]
 
-        output_file_name = ["estimated_signal_1.csv",
-                            "estimated_signal_3.csv",
-                            "estimated_signal_5.csv",
-                            "estimated_signal_6.csv",
-                            "estimated_signal_7.csv",
-                            "estimated_signal_8.csv",
-                            "estimated_signal_9.csv",
-                            "estimated_signal_15.csv",
-                            "estimated_signal_19.csv",
-                            "estimated_signal_20.csv"]
+        output_file_name = ["estimated_signal_1",
+                            "estimated_signal_3",
+                            "estimated_signal_5",
+                            "estimated_signal_6",
+                            "estimated_signal_7",
+                            "estimated_signal_8",
+                            "estimated_signal_9",
+                            "estimated_signal_15",
+                            "estimated_signal_19",
+                            "estimated_signal_20"]
+
+    output_prefix = ".csv"
 
     print("Getting data")
 
@@ -525,12 +571,14 @@ def main(fit_model_bool, while_bool, load_bool):
     print("Got data")
 
     window_size = 40
-    window_stride_size = window_size
+    window_stride_size = math.floor(window_size / 2.0)
 
     if tof_bool:
         data_window_size = window_size
     else:
-        data_window_size = window_size * 10
+        # data_window_size = window_stride_size * 20
+
+        data_window_size = window_stride_size * 4
 
     data_window_stride_size = data_window_size
 
@@ -587,6 +635,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 apply_bool,
                                                                                 x_path_list[i],
                                                                                 y_path_list[i],
+                                                                                i,
                                                                                 j,
                                                                                 data_window_size,
                                                                                 window_size,
@@ -596,7 +645,9 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 tof_bool,
                                                                                 stochastic_bool,
                                                                                 passthrough_bool,
-                                                                                epochs)
+                                                                                epochs,
+                                                                                output_all_bool,
+                                                                                number_of_bins)
                     # except:
                     # print("Error fitting model: continuing")
 
@@ -647,17 +698,30 @@ def main(fit_model_bool, while_bool, load_bool):
                 current_output, start_position, out_of_bounds_bool = test_model(model,
                                                                                 x_path_list[i],
                                                                                 y_path_list[i],
+                                                                                i,
                                                                                 j,
                                                                                 data_window_size,
                                                                                 window_size,
                                                                                 data_size,
                                                                                 window_stride_size,
                                                                                 output_path,
-                                                                                output_path)
+                                                                                output_path,
+                                                                                output_all_bool,
+                                                                                number_of_bins)
+
+                for l in range(len(current_output)):
+                    if output_all_bool:
+                        with open(output_path + output_file_name[i] + "_part_" + str(i) + "_" + str(j) + "_" + str(
+                                l) + output_prefix, "w") as file:
+                            write_to_file(file, current_output[l].reshape(current_output[l].size, 1))
+
+                    current_output[l] = scipy.stats.zscore(current_output[l])
 
                 current_output_list = current_output.tolist()
 
                 for l in range(len(current_output_list)):
+                    current_output_list[l] = current_output_list[l]
+
                     for p in range(l * window_stride_size):
                         current_output_list[l].insert(0, np.nan)
 
@@ -689,9 +753,10 @@ def main(fit_model_bool, while_bool, load_bool):
 
                             output_array[i] = output_array[i] * -1
 
-            output = scipy.stats.zscore(np.nanmean(np.asfarray(output_array), axis=0))
+            output = np.nanmean(np.asfarray(output_array), axis=0)
+            output = scipy.stats.zscore(output)
 
-            with open("./results/" + output_file_name[i], "w") as file:
+            with open(output_path + output_file_name[i] + output_prefix, "w") as file:
                 write_to_file(file, output.reshape(output.size, 1))
 
         print("Done")

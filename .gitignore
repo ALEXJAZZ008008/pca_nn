@@ -131,3 +131,5 @@ data/
 results/path_start_point
 results/data_start_point
 results/lr
+results/batch_size
+results/log/

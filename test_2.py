@@ -76,7 +76,7 @@ def test_down(x, layers, regularisation, filters, initializer, batch_normalisati
 
 
 def test_module_out(x):
-    x = k.layers.Flatten()(x)
+    x = k.layers.TimeDistributed(k.layers.Flatten())(x)
 
     return x
 
@@ -183,18 +183,17 @@ def test_module_gru(x, regularisation, units, activation, return_sequences, init
 
 
 def test_module_rnn_out(x, layers, rnn_type, regularisation, units, activation, initializer, unroll):
-    if layers > 1:
-        x = k.layers.TimeDistributed(k.layers.Flatten())(x)
+    x = k.layers.TimeDistributed(k.layers.Flatten())(x)
 
-        for _ in range(layers - 1):
-            if rnn_type == "rnn":
-                x = test_module_rnn(x, regularisation, units, activation, True, initializer, unroll)
+    for _ in range(layers):
+        if rnn_type == "rnn":
+            x = test_module_rnn(x, regularisation, units, activation, True, initializer, unroll)
+        else:
+            if rnn_type == "lstm":
+                x = test_module_lstm(x, regularisation, units, activation, True, initializer, unroll)
             else:
-                if rnn_type == "lstm":
-                    x = test_module_lstm(x, regularisation, units, activation, True, initializer, unroll)
-                else:
-                    if rnn_type == "gru":
-                        x = test_module_gru(x, regularisation, units, activation, True, initializer, unroll)
+                if rnn_type == "gru":
+                    x = test_module_gru(x, regularisation, units, activation, True, initializer, unroll)
 
     return x
 
@@ -299,12 +298,12 @@ def test_up(x, x_skip, regularisation, filters, initializer, batch_normalisation
     return x
 
 
-def test_multi_out(x, activation, regularisation, filters, initializer, layers, batch_normalisation_bool):
+def test_multi_out(x, activation, regularisation, filters, initializer, layers, batch_normalisation_bool, up_filters):
     x = test_module_in(x, activation, regularisation, filters, initializer)
 
     x, x_skip = test_down(x, layers, regularisation, filters, initializer, batch_normalisation_bool, activation)
 
-    x_2 = test_up(x, x_skip, regularisation, filters, initializer, batch_normalisation_bool, activation)
+    x_2 = test_up(x, x_skip, regularisation, up_filters, initializer, batch_normalisation_bool, activation)
 
     x_1 = test_module_out(x)
 
@@ -312,12 +311,12 @@ def test_multi_out(x, activation, regularisation, filters, initializer, layers, 
 
 
 def test_multi_rnn_out(x, activation, regularisation, filters, initializer, down_layers, batch_normalisation_bool,
-                       tof_bool, out_layers, rnn_type, units, rnn_activation, rnn_initializer, unroll):
+                       up_filters, out_layers, rnn_type, units, rnn_activation, rnn_initializer, unroll):
     x = test_module_in(x, activation, regularisation, filters, initializer)
 
     x, x_skip = test_down(x, down_layers, regularisation, filters, initializer, batch_normalisation_bool, activation)
 
-    x_2 = test_up(x, x_skip, regularisation, filters, initializer, batch_normalisation_bool, activation)
+    x_2 = test_up(x, x_skip, regularisation, up_filters, initializer, batch_normalisation_bool, activation)
 
     x_1 = test_module_rnn_out(x, out_layers, rnn_type, regularisation, units, rnn_activation, rnn_initializer, unroll)
 

@@ -219,14 +219,14 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            # x = test_2.test_in_down_out(input_x, "relu", 21, "he_uniform", 7, True)
-            # x = test_2.test_rnn_out(input_x, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
-            # x = test_2.test_in_down_rnn_out(input_x, "relu", 24, "he_uniform", 7, True, tof_bool, 1, "lstm", 40, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(input_x, "relu", False, 25, "he_uniform", 7, False)
+            # x = test_2.test_rnn_out(input_x, 1, "rnn", False, 280, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_rnn_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", False, 21, "he_uniform", 7, True)
-            x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 24, "he_uniform", 7, True, tof_bool, 7, "rnn", 40, "relu", "he_uniform", False)
+            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1)
+            x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x = network.output_module(x, output_size, "glorot_uniform", "linear")
+            # x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
 
             x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
             x_2 = network.output_module_2(x_2, "glorot_uniform", "linear")
@@ -289,7 +289,7 @@ def fit_model(input_model,
 
             # if batch_size <= 20:
 
-            if batch_size <= 3:
+            if batch_size <= 44:
                 with open(output_path + "/batch_size", "w") as file:
                     file.write(str(batch_size))
 
@@ -578,7 +578,7 @@ def main(fit_model_bool, while_bool, load_bool):
     else:
         # data_window_size = window_stride_size * 20
 
-        data_window_size = window_stride_size * 4
+        data_window_size = window_stride_size * 10
 
     data_window_stride_size = data_window_size
 

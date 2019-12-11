@@ -13,16 +13,16 @@ def output_activation(x, batch_normalisation_bool, activation, name):
     return x
 
 
-def output_module(x, units, initializer, activation):
+def output_module(x, units, initializer, activation, name):
     x = k.layers.Dense(units=units,
                        kernel_initializer=initializer,
                        bias_initializer=k.initializers.Constant(0.1))(x)
-    x = output_activation(x, False, activation, "output")
+    x = output_activation(x, False, activation, name)
 
     return x
 
 
-def output_module_1(x, rnn_type, units, activation, recurrent_activation, initializer, recurrent_initializer, unroll):
+def output_module_1(x, rnn_type, units, activation, recurrent_activation, initializer, recurrent_initializer, unroll, name):
     if rnn_type == "rnn":
         x = k.layers.SimpleRNN(units=units,
                                activation=activation,
@@ -31,7 +31,7 @@ def output_module_1(x, rnn_type, units, activation, recurrent_activation, initia
                                bias_initializer=k.initializers.Constant(0.1),
                                recurrent_initializer=recurrent_initializer,
                                unroll=unroll,
-                               name="output_1")(x)
+                               name=name)(x)
     else:
         if rnn_type == "lstm":
             x = k.layers.LSTM(units=units,
@@ -42,7 +42,7 @@ def output_module_1(x, rnn_type, units, activation, recurrent_activation, initia
                               bias_initializer=k.initializers.Constant(0.1),
                               recurrent_initializer=recurrent_initializer,
                               unroll=unroll,
-                              name="output_1")(x)
+                              name=name)(x)
         else:
             if rnn_type == "gru":
                 x = k.layers.GRU(units=units,
@@ -53,19 +53,19 @@ def output_module_1(x, rnn_type, units, activation, recurrent_activation, initia
                                  bias_initializer=k.initializers.Constant(0.1),
                                  recurrent_initializer=recurrent_initializer,
                                  unroll=unroll,
-                                 name="output_1")(x)
+                                 name=name)(x)
 
     return x
 
 
-def output_module_2(x, initializer, activation):
+def output_module_2(x, initializer, activation, name):
     x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=1,
                                                         kernel_size=(3, 3, 3),
                                                         strides=(1, 1, 1),
                                                         padding='same',
                                                         kernel_initializer=initializer,
                                                         bias_initializer=k.initializers.Constant(0.1)))(x)
-    x = output_activation(x, False, activation, "output_2")
+    x = output_activation(x, False, activation, name)
 
     return x
 

@@ -220,33 +220,40 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            # x = test_2.test_in_down_out(input_x, "relu", True, 25, "he_uniform", 7, True)
-            # x = test_2.test_rnn_out(input_x, 1, "rnn", True, 280, "relu", "he_uniform", True)
-            # x = test_2.test_in_down_rnn_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1, "rnn", 280, "relu", "he_uniform", False)
+            x = input_x
 
-            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1)
-            # x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 280, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(x, "relu", True, 25, "he_uniform", 7, True)
+            # x = test_2.test_rnn_out(x, 1, "rnn", True, 280, "relu", "he_uniform", True)
+            # x = test_2.test_in_down_rnn_out(x, "relu", True, 25, "he_uniform", 7, True, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x = test_2.test_in_down_out(input_x, "relu", True, 15, "he_uniform", 3, True)
-            # x = test_2.test_rnn_out(input_x, 1, "rnn", True, 375, "relu", "he_uniform", True)
-            x = test_2.test_in_down_rnn_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1, "rnn", 100, "relu", "he_uniform", False)
+            # x_1, x_2 = test_2.test_multi_out(x, "relu", True, 25, "he_uniform", 7, True, 1)
+            # x_1, x_2 = test_2.test_multi_rnn_out(x, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1)
-            # x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1, 1, "rnn", 375, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(x, "relu", True, 15, "he_uniform", 3, True)
+            # x = test_2.test_rnn_out(x, 1, "rnn", True, 85, "relu", "he_uniform", True)
+            # x = test_2.test_in_down_rnn_out(x, "relu", True, 15, "he_uniform", 3, True, 1, "rnn", 85, "relu", "he_uniform", False)
 
-            x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
+            # x, x_1, x_2 = test_2.test_multi_out(x, "relu", True, 15, "he_uniform", 3, True, 1)
+            x, x_1, x_2 = test_2.test_multi_rnn_out(x, "relu", True, 15, "he_uniform", 3, True, 1, 1, "rnn", 85, "relu", "he_uniform", False)
 
-            # x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
-            # x_2 = network.output_module_2(x_2, "glorot_uniform", "linear")
+            x, x_3, x_4 = test_2.test_multi_out(x, "relu", True, 25, "he_uniform", 4, True, 1)
+            # x, x_3, x_4 = test_2.test_multi_rnn_out(x, "relu", True, 15, "he_uniform", 3, True, 1, 1, "rnn", 85, "relu", "he_uniform", False)
 
-            model = k.Model(inputs=input_x, outputs=x)
+            # x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output")
 
-            # model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_1")
+            x_2 = network.output_module_2(x_2, "glorot_uniform", "linear", "output_2")
+
+            x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_3")
+            x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
+
+            # model = k.Model(inputs=input_x, outputs=x)
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
 
             lr = 0.01
 
             model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
-
             # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
             # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=1.0), loss=k.losses.mean_squared_error)
 
@@ -283,9 +290,9 @@ def fit_model(input_model,
         reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.0001, cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
-
+        # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
         # model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = k.backend.get_value(model.optimizer.lr)
 
@@ -295,8 +302,8 @@ def fit_model(input_model,
 
             batch_size = batch_size + 1
 
-            if batch_size <= 80:
-                # if batch_size <= 40:
+            # if batch_size <= 80:
+            if batch_size <= 40:
                 with open(output_path + "/batch_size", "w") as file:
                     file.write(str(batch_size))
 
@@ -604,9 +611,9 @@ def main(fit_model_bool, while_bool, load_bool):
     if tof_bool:
         data_window_size = window_size
     else:
-        data_window_size = window_stride_size * 20
+        # data_window_size = window_stride_size * 20
 
-        # data_window_size = window_stride_size * 10
+        data_window_size = window_stride_size * 10
 
     data_window_stride_size = data_window_size
 

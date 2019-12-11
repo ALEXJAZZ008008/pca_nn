@@ -4,6 +4,7 @@ from random import randint
 import time
 import math
 import keras as k
+from sklearn.preprocessing import RobustScaler
 import numpy as np
 import scipy.io
 import scipy.stats
@@ -219,28 +220,35 @@ def fit_model(input_model,
 
             input_x = k.layers.Input(x_train.shape[1:])
 
-            # x = test_2.test_in_down_out(input_x, "relu", False, 25, "he_uniform", 7, False)
-            # x = test_2.test_rnn_out(input_x, 1, "rnn", False, 280, "relu", "he_uniform", False)
-            # x = test_2.test_in_down_rnn_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1, "rnn", 280, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(input_x, "relu", True, 25, "he_uniform", 7, True)
+            # x = test_2.test_rnn_out(input_x, 1, "rnn", True, 280, "relu", "he_uniform", True)
+            # x = test_2.test_in_down_rnn_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1)
-            x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", False, 25, "he_uniform", 7, False, 1, 1, "rnn", 280, "relu", "he_uniform", False)
+            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1)
+            # x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 280, "relu", "he_uniform", False)
 
-            # x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
+            # x = test_2.test_in_down_out(input_x, "relu", True, 15, "he_uniform", 3, True)
+            # x = test_2.test_rnn_out(input_x, 1, "rnn", True, 375, "relu", "he_uniform", True)
+            x = test_2.test_in_down_rnn_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1, "rnn", 100, "relu", "he_uniform", False)
 
-            x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
-            x_2 = network.output_module_2(x_2, "glorot_uniform", "linear")
+            # x_1, x_2 = test_2.test_multi_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1)
+            # x_1, x_2 = test_2.test_multi_rnn_out(input_x, "relu", True, 15, "he_uniform", 3, True, 1, 1, "rnn", 375, "relu", "he_uniform", False)
 
-            # model = k.Model(inputs=input_x, outputs=x)
+            x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
 
-            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            # x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False)
+            # x_2 = network.output_module_2(x_2, "glorot_uniform", "linear")
+
+            model = k.Model(inputs=input_x, outputs=x)
+
+            # model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=5.0), loss=k.losses.mean_squared_error)
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
 
             # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=5.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=1.0), loss=k.losses.mean_squared_error)
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -272,12 +280,12 @@ def fit_model(input_model,
         with open(output_path + "/batch_size", "r") as file:
             batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, cooldown=1)
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.0001, cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
-        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        # model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = k.backend.get_value(model.optimizer.lr)
 
@@ -287,9 +295,8 @@ def fit_model(input_model,
 
             batch_size = batch_size + 1
 
-            # if batch_size <= 20:
-
-            if batch_size <= 44:
+            if batch_size <= 80:
+                # if batch_size <= 40:
                 with open(output_path + "/batch_size", "w") as file:
                     file.write(str(batch_size))
 
@@ -375,11 +382,11 @@ def test_model(input_model,
     if len(output) > 1:
         if output_all_bool:
             for i in range(len(output[1])):
-                downsample_histogram_equalisation_and_zscore_input_data(output[1], number_of_bins,
-                                                                        output_path + "/test_estimated_input_" + str(
-                                                                            path) + "_" + str(
-                                                                            start_position) + "_" + str(
-                                                                            i))
+                downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
+                                                                             output_path + "/test_estimated_input_" + str(
+                                                                                 path) + "_" + str(
+                                                                                 start_position) + "_" + str(
+                                                                                 i))
 
         output = output[0]
 
@@ -424,7 +431,7 @@ def histogram_equalisation(data_array, number_of_bins):
     return output
 
 
-def downsample_histogram_equalisation_and_zscore_input_data(input_data, number_of_bins, output_path):
+def downsample_histogram_equalisation_and_standardise_input_data(input_data, number_of_bins, output_path):
     data_array = histogram_equalisation(input_data, number_of_bins)
 
     data_array = scipy.stats.zscore(data_array)
@@ -432,7 +439,7 @@ def downsample_histogram_equalisation_and_zscore_input_data(input_data, number_o
     np.save(output_path, data_array.astype(np.float32))
 
 
-def downsample_histogram_equalisation_and_zscore(input_path, tof_bool, number_of_bins, output_path):
+def downsample_histogram_equalisation_and_standardise(input_path, tof_bool, number_of_bins, output_path):
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
 
@@ -445,12 +452,19 @@ def downsample_histogram_equalisation_and_zscore(input_path, tof_bool, number_of
 
         data_array = histogram_equalisation(data_array, number_of_bins)
 
-        data_array = scipy.stats.zscore(data_array)
+        data_array_shape = data_array.shape
+
+        data_array = np.reshape(data_array.flatten(), [-1,  1])
+
+        transformer = RobustScaler().fit(data_array)
+        data_array = transformer.transform(data_array)
+
+        data_array = np.reshape(data_array, data_array_shape)
 
         np.save(output_path[i], data_array.astype(np.float32))
 
 
-def downsample_and_zscore(input_path, tof_bool, output_path):
+def downsample_and_standardise(input_path, tof_bool, output_path):
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
 
@@ -461,7 +475,14 @@ def downsample_and_zscore(input_path, tof_bool, output_path):
 
         data_array = data_array.T
 
-        data_array = scipy.stats.zscore(data_array)
+        data_array_shape = data_array.shape
+
+        np.reshape(data_array.flatten(), [-1,  1])
+
+        transformer = RobustScaler().fit(data_array)
+        data_array = transformer.transform(data_array)
+
+        data_array = np.reshape(data_array, data_array_shape)
 
         np.save(output_path[i], data_array.astype(np.float32))
 
@@ -475,12 +496,19 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def rescale(input_path, output_path):
+def standardise(input_path, output_path):
     for i in range(len(input_path)):
         data = scipy.io.loadmat(input_path[i])
         data_array = data.get(list(data.keys())[3])
 
-        data_array = scipy.stats.zscore(data_array)
+        data_array_shape = data_array.shape
+
+        np.reshape(data_array.flatten(), [-1,  1])
+
+        transformer = RobustScaler().fit(data_array)
+        data_array = transformer.transform(data_array)
+
+        data_array = np.reshape(data_array, data_array_shape)
 
         np.save(output_path[i], data_array.astype(np.float32))
 
@@ -565,8 +593,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
     print("Getting data")
 
-    downsample_histogram_equalisation_and_zscore(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
-    rescale(y_path_orig_list, y_path_list)
+    downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
+    standardise(y_path_orig_list, y_path_list)
 
     print("Got data")
 
@@ -576,9 +604,9 @@ def main(fit_model_bool, while_bool, load_bool):
     if tof_bool:
         data_window_size = window_size
     else:
-        # data_window_size = window_stride_size * 20
+        data_window_size = window_stride_size * 20
 
-        data_window_size = window_stride_size * 10
+        # data_window_size = window_stride_size * 10
 
     data_window_stride_size = data_window_size
 

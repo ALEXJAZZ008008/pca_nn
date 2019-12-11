@@ -21,10 +21,10 @@ def test_module_in(x, activation, regularisation, filters, initializer):
                                                                 padding='same',
                                                                 kernel_initializer=initializer,
                                                                 bias_initializer=k.initializers.Constant(0.1),
-                                                                kernel_regularizer=k.regularizers.l2(0.01),
-                                                                bias_regularizer=k.regularizers.l2(0.01),
-                                                                kernel_constraint=k.constraints.max_norm(3),
-                                                                bias_constraint=k.constraints.max_norm(3)))(x)
+                                                                kernel_regularizer=k.regularizers.l2(0.0001),
+                                                                bias_regularizer=k.regularizers.l2(0.0001),
+                                                                kernel_constraint=k.constraints.max_norm(1.0),
+                                                                bias_constraint=k.constraints.max_norm(1.0)))(x)
             x = test_activation(x, True, "relu")
             x = k.layers.AlphaDropout(0.5)(x)
         else:
@@ -46,10 +46,10 @@ def test_module_down(x, regularisation, filters, initializer, batch_normalisatio
                                                             padding="same",
                                                             kernel_initializer=initializer,
                                                             bias_initializer=k.initializers.Constant(0.1),
-                                                            kernel_regularizer=k.regularizers.l2(0.01),
-                                                            bias_regularizer=k.regularizers.l2(0.01),
-                                                            kernel_constraint=k.constraints.max_norm(3),
-                                                            bias_constraint=k.constraints.max_norm(3)))(x)
+                                                            kernel_regularizer=k.regularizers.l2(0.0001),
+                                                            bias_regularizer=k.regularizers.l2(0.0001),
+                                                            kernel_constraint=k.constraints.max_norm(1.0),
+                                                            bias_constraint=k.constraints.max_norm(1.0)))(x)
         x = test_activation(x, batch_normalisation_bool, activation)
         x = k.layers.AlphaDropout(0.5)(x)
     else:
@@ -96,17 +96,17 @@ def test_module_rnn(x, regularisation, units, activation, return_sequences, init
         x = k.layers.SimpleRNN(units=units,
                                activation=activation,
                                return_sequences=return_sequences,
-                               dropout=0.25,
-                               recurrent_dropout=0.25,
+                               dropout=0.5,
+                               recurrent_dropout=0.5,
                                kernel_initializer=initializer,
                                bias_initializer=k.initializers.Constant(0.1),
                                recurrent_initializer=initializer,
-                               kernel_regularizer=k.regularizers.l2(0.01),
-                               bias_regularizer=k.regularizers.l2(0.01),
-                               recurrent_regularizer=k.regularizers.l2(0.01),
-                               kernel_constraint=k.constraints.max_norm(3),
-                               bias_constraint=k.constraints.max_norm(3),
-                               recurrent_constraint=k.constraints.max_norm(3),
+                               kernel_regularizer=k.regularizers.l2(0.0001),
+                               bias_regularizer=k.regularizers.l2(0.0001),
+                               recurrent_regularizer=k.regularizers.l2(0.0001),
+                               kernel_constraint=k.constraints.max_norm(1.0),
+                               bias_constraint=k.constraints.max_norm(1.0),
+                               recurrent_constraint=k.constraints.max_norm(1.0),
                                unroll=unroll)(x)
     else:
         x = k.layers.SimpleRNN(units=units,
@@ -126,17 +126,17 @@ def test_module_lstm(x, regularisation, units, activation, return_sequences, ini
                           activation=activation,
                           recurrent_activation=activation,
                           return_sequences=return_sequences,
-                          dropout=0.25,
-                          recurrent_dropout=0.25,
+                          dropout=0.5,
+                          recurrent_dropout=0.5,
                           kernel_initializer=initializer,
                           bias_initializer=k.initializers.Constant(0.1),
                           recurrent_initializer=initializer,
-                          kernel_regularizer=k.regularizers.l2(0.01),
-                          bias_regularizer=k.regularizers.l2(0.01),
-                          recurrent_regularizer=k.regularizers.l2(0.01),
-                          kernel_constraint=k.constraints.max_norm(3),
-                          bias_constraint=k.constraints.max_norm(3),
-                          recurrent_constraint=k.constraints.max_norm(3),
+                          kernel_regularizer=k.regularizers.l2(0.0001),
+                          bias_regularizer=k.regularizers.l2(0.0001),
+                          recurrent_regularizer=k.regularizers.l2(0.0001),
+                          kernel_constraint=k.constraints.max_norm(1.0),
+                          bias_constraint=k.constraints.max_norm(1.0),
+                          recurrent_constraint=k.constraints.max_norm(1.0),
                           unroll=unroll)(x)
     else:
         x = k.layers.LSTM(units=units,
@@ -157,17 +157,17 @@ def test_module_gru(x, regularisation, units, activation, return_sequences, init
                          activation=activation,
                          recurrent_activation=activation,
                          return_sequences=return_sequences,
-                         dropout=0.25,
-                         recurrent_dropout=0.25,
+                         dropout=0.5,
+                         recurrent_dropout=0.5,
                          kernel_initializer=initializer,
                          bias_initializer=k.initializers.Constant(0.1),
                          recurrent_initializer=initializer,
-                         kernel_regularizer=k.regularizers.l2(0.01),
-                         bias_regularizer=k.regularizers.l2(0.01),
-                         recurrent_regularizer=k.regularizers.l2(0.01),
-                         kernel_constraint=k.constraints.max_norm(3),
-                         bias_constraint=k.constraints.max_norm(3),
-                         recurrent_constraint=k.constraints.max_norm(3),
+                         kernel_regularizer=k.regularizers.l2(0.0001),
+                         bias_regularizer=k.regularizers.l2(0.0001),
+                         recurrent_regularizer=k.regularizers.l2(0.0001),
+                         kernel_constraint=k.constraints.max_norm(1.0),
+                         bias_constraint=k.constraints.max_norm(1.0),
+                         recurrent_constraint=k.constraints.max_norm(1.0),
                          unroll=unroll)(x)
     else:
         x = k.layers.GRU(units=units,
@@ -225,10 +225,10 @@ def test_module_up(x, regularisation, filters, initializer, batch_normalisation_
                                                               padding="same",
                                                               kernel_initializer=initializer,
                                                               bias_initializer=k.initializers.Constant(0.1),
-                                                              kernel_regularizer=k.regularizers.l2(0.01),
-                                                              bias_regularizer=k.regularizers.l2(0.01),
-                                                              kernel_constraint=k.constraints.max_norm(3),
-                                                              bias_constraint=k.constraints.max_norm(3)))(x)
+                                                              kernel_regularizer=k.regularizers.l2(0.0001),
+                                                              bias_regularizer=k.regularizers.l2(0.0001),
+                                                              kernel_constraint=k.constraints.max_norm(1.0),
+                                                              bias_constraint=k.constraints.max_norm(1.0)))(x)
         x = test_activation(x, batch_normalisation_bool, activation)
         x = k.layers.AlphaDropout(0.5)(x)
     else:

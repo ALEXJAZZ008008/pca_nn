@@ -228,33 +228,37 @@ def fit_model(input_model,
             # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1, "rnn", 310, "relu", "he_uniform", False)
 
             # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1)
-            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 310, "relu", "he_uniform", False)
+            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 310, "relu", "he_uniform", False)
 
             # x = test_2.test_in_down_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True)
             # x = test_2.test_rnn_out(x, 1, "rnn", True, 40, "relu", "he_uniform", True)
             # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 40, "relu", "he_uniform", False)
 
             # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1)
-            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 45, "he_uniform", 3, False, 1, 1, "rnn", 40, "relu", "he_uniform", False)
+            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 45, "he_uniform", 3, False, 1, 1, "rnn", 40, "relu", "he_uniform", False)
 
             # x, x_skip, x_3, x_4 = test_2.test_multi_out(x, x_skip, "relu", True, 25, "he_uniform", 4, True, 1)
-            # x, x_skip, x_3, x_4 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 25, "he_uniform", 4, False, 1, 1, "rnn", 310, "relu", "he_uniform", False)
+            x, x_skip, x_3, x_4 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 25, "he_uniform", 4, False, 1, 1, "rnn", 310, "relu", "he_uniform", False)
 
             # x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output")
 
             x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_1")
             x_2 = network.output_module_2(x_2, "glorot_uniform", "linear", "output_2")
 
-            # x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_3")
-            # x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
+            x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_3")
+            x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
 
             # model = k.Model(inputs=input_x, outputs=x)
-            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
-            # model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
+            # model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipvalue=1.0), loss=k.losses.mean_squared_error)
+
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
             # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
             # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=1.0), loss=k.losses.mean_squared_error)
 
@@ -293,8 +297,8 @@ def fit_model(input_model,
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
         # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
-        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
-        # model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        # model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
 

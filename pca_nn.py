@@ -223,44 +223,42 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            # x = test_2.test_in_down_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True)
-            # x = test_2.test_rnn_out(x, 1, "rnn", True, 310, "relu", "he_uniform", True)
-            # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1, "rnn", 310, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True)
+            # x = test_2.test_rnn_out(x, 1, "rnn", True, 540, "relu", "he_uniform", True)
+            x = test_2.test_in_down_rnn_out(x, x_skip, "prelu", False, 30, "he_uniform", 7, True, 1, "lstm", 380, "tanh", False, "he_uniform", "relu")
 
-            # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1)
-            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 25, "he_uniform", 7, True, 1, 1, "rnn", 310, "relu", "he_uniform", False)
+            # x = test_2.test_in_down_out(x, x_skip, "relu", True, 45, "he_uniform", 7, True)
+            # x = test_2.test_rnn_out(x, 1, "rnn", True, 50, "relu", "he_uniform", True)
+            # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 50, "relu", "he_uniform", False)
+
+            # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True, 1)
+            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True, 1, 1, "rnn", 540, "relu", "he_uniform", False)
 
             # x = test_2.test_in_down_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True)
-            # x = test_2.test_rnn_out(x, 1, "rnn", True, 40, "relu", "he_uniform", True)
-            # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 40, "relu", "he_uniform", False)
+            # x = test_2.test_rnn_out(x, 1, "rnn", True, 45, "relu", "he_uniform", True)
+            # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 50, "relu", "he_uniform", False)
 
             # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1)
-            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 45, "he_uniform", 3, False, 1, 1, "rnn", 40, "relu", "he_uniform", False)
+            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, 1, "rnn", 50, "relu", "he_uniform", False)
 
-            # x, x_skip, x_3, x_4 = test_2.test_multi_out(x, x_skip, "relu", True, 25, "he_uniform", 4, True, 1)
-            x, x_skip, x_3, x_4 = test_2.test_multi_rnn_out(x, x_skip, "relu", False, 25, "he_uniform", 4, False, 1, 1, "rnn", 310, "relu", "he_uniform", False)
+            # x, x_skip, x_3, x_4 = test_2.test_multi_out(x, x_skip, "relu", True, 30, "he_uniform", 4, True, 1)
+            # x, x_skip, x_3, x_4 = test_2.test_multi_rnn_out(x, x_skip, "prelu", True, 30, "he_uniform", 4, True, 1, 1, "rnn", 540, "hard_sigmoid", "glorot_uniform", False)
 
-            # x = network.output_module_1(x, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output")
+            x = network.output_module_1(x, "rnn", output_size, "tanh", "he_normal", False, True, "linear", "output")
 
-            x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_1")
-            x_2 = network.output_module_2(x_2, "glorot_uniform", "linear", "output_2")
+            # x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he0_uniform", False, "output_1")
+            # x_2 = network.output_module_2(x_2, "glorot_uniform", "linear", "output_2")
 
-            x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "relu", "glorot_uniform", "he_uniform", False, "output_3")
-            x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
+            # x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "hard_sigmoid", "glorot_uniform", "glorot_uniform", False, "output_3")
+            # x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
 
-            # model = k.Model(inputs=input_x, outputs=x)
+            model = k.Model(inputs=input_x, outputs=x)
             # model = k.Model(inputs=input_x, outputs=[x_1, x_2])
-            model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
+            # model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error)
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipvalue=1.0), loss=k.losses.mean_squared_error)
-
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0, clipvalue=1.0), loss=k.losses.mean_squared_error)
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipvalue=1.0), loss=k.losses.mean_squared_error)
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error)
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -296,9 +294,10 @@ def fit_model(input_model,
                                                   cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback],
+                  verbose=1)
         # model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
-        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        # model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
 
@@ -306,12 +305,17 @@ def fit_model(input_model,
             with open(output_path + "/lr", "w") as file:
                 file.write(str(output_lr))
 
-            batch_size = batch_size + 1
+            # max_batch_size = 60
+            max_batch_size = 30
 
-            if batch_size <= 60:
-                # if batch_size <= 30:
-                with open(output_path + "/batch_size", "w") as file:
-                    file.write(str(batch_size))
+            if batch_size <= max_batch_size:
+                batch_size = batch_size * 2
+
+            if batch_size > max_batch_size:
+                batch_size = max_batch_size
+
+            with open(output_path + "/batch_size", "w") as file:
+                file.write(str(batch_size))
 
         print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
@@ -392,32 +396,38 @@ def test_model(input_model,
 
     output = model.predict(x_test)
 
-    if len(output) > 1:
-        if len(output) > 2:
-            if output_all_bool:
-                for i in range(len(output[1])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
+    if output.ndim > 2:
+        if len(output) > 1:
+            if len(output) > 2:
+                if output_all_bool:
+                    for i in range(len(output[1])):
+                        downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
+                                                                                     output_path + "/test_estimated_input_" + str(
+                                                                                         1) + "_" + str(
+                                                                                         path) + "_" + str(
+                                                                                         start_position) + "_" + str(i))
 
-                for i in range(len(output[3])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
+                    for i in range(len(output[3])):
+                        downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
+                                                                                     output_path + "/test_estimated_input_" + str(
+                                                                                         1) + "_" + str(
+                                                                                         path) + "_" + str(
+                                                                                         start_position) + "_" + str(i))
 
-            output = [output[0], output[2]]
+                output = [output[0], output[2]]
 
-        else:
-            if output_all_bool:
-                for i in range(len(output[1])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
+            else:
+                if output_all_bool:
+                    for i in range(len(output[1])):
+                        downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
+                                                                                     output_path + "/test_estimated_input_" + str(
+                                                                                         1) + "_" + str(
+                                                                                         path) + "_" + str(
+                                                                                         start_position) + "_" + str(i))
 
-            output = [output[0]]
+                output = [output[0]]
+    else:
+        output = np.asfarray([output])
 
     for i in range(len(output)):
         current_output = output[i]
@@ -585,8 +595,6 @@ def zscore(input_path, output_path):
         data = scipy.io.loadmat(input_path[i])
         data_array = data.get(list(data.keys())[3])
 
-        data_array_shape = data_array.shape
-
         data_array = scipy.stats.zscore(data_array)
 
         np.save(output_path[i], data_array.astype(np.float32))
@@ -686,9 +694,9 @@ def main(fit_model_bool, while_bool, load_bool):
     if tof_bool:
         data_window_size = window_size
     else:
-        data_window_size = window_stride_size * 20
+        # data_window_size = window_stride_size * 20
 
-        # data_window_size = window_stride_size * 10
+        data_window_size = window_stride_size * 10
 
     data_window_stride_size = data_window_size
 
@@ -873,4 +881,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(False, True, True)
+    main(True, True, False)

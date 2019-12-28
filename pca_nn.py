@@ -719,8 +719,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
     print("Getting data")
 
-    downsample_histogram_equalisation_and_zscore(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
-    zscore(y_path_orig_list, y_path_list)
+    downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
+    standardise(y_path_orig_list, y_path_list)
 
     print("Got data")
 
@@ -773,6 +773,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
+
+                data_window_size = int(data_window_size)
 
                 data_window_stride_size = data_window_size
 
@@ -847,6 +849,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
             if data_window_size >= data_size:
                 data_window_size = data_size - 1
+
+            data_window_size = int(data_window_size)
 
             data_window_stride_size = data_window_size
 

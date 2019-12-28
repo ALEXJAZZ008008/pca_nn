@@ -14,6 +14,8 @@ def output_activation(x, batch_normalisation_bool, activation, name):
 
 
 def output_module(x, units, initializer, batch_normalisation_bool, activation, name):
+    x = k.layers.Flatten()(x)
+
     x = k.layers.Dense(units=units,
                        kernel_initializer=initializer,
                        bias_initializer=k.initializers.Constant(0.1))(x)
@@ -23,38 +25,71 @@ def output_module(x, units, initializer, batch_normalisation_bool, activation, n
     return x
 
 
-def output_module_1(x, rnn_type, units, recurrent_activation, initializer, unroll, batch_normalisation_bool, activation, name):
-    if rnn_type == "rnn":
-        x = k.layers.SimpleRNN(units=units,
-                               return_sequences=False,
-                               kernel_initializer=initializer,
-                               bias_initializer=k.initializers.Constant(0.1),
-                               recurrent_initializer=k.initializers.Constant(0.0),
-                               unroll=unroll)(x)
-
-        x = output_activation(x, batch_normalisation_bool, activation, name)
+def output_module_1(x, internal_bool, rnn_type, units, activation, initializer, recurrent_initializer, unroll, name, recurrent_activation, batch_normalisation_bool):
+    if internal_bool:
+        if rnn_type == "rnn":
+            x = k.layers.SimpleRNN(units=units,
+                                   activation=activation,
+                                   return_sequences=False,
+                                   kernel_initializer=initializer,
+                                   bias_initializer=k.initializers.Constant(0.1),
+                                   recurrent_initializer=recurrent_initializer,
+                                   unroll=unroll,
+                                   name=name)(x)
+        else:
+            if rnn_type == "lstm":
+                x = k.layers.LSTM(units=units,
+                                  activation=activation,
+                                  recurrent_activation=recurrent_activation,
+                                  return_sequences=False,
+                                  kernel_initializer=initializer,
+                                  bias_initializer=k.initializers.Constant(0.1),
+                                  recurrent_initializer=recurrent_initializer,
+                                  unroll=unroll,
+                                  name=name)(x)
+            else:
+                if rnn_type == "gru":
+                    x = k.layers.GRU(units=units,
+                                     activation=activation,
+                                     recurrent_activation=recurrent_activation,
+                                     return_sequences=False,
+                                     kernel_initializer=initializer,
+                                     bias_initializer=k.initializers.Constant(0.1),
+                                     recurrent_initializer=recurrent_initializer,
+                                     unroll=unroll,
+                                     name=name)(x)
     else:
-        if rnn_type == "lstm":
-            x = k.layers.LSTM(units=units,
-                              recurrent_activation=recurrent_activation,
-                              return_sequences=False,
-                              kernel_initializer=initializer,
-                              bias_initializer=k.initializers.Constant(0.1),
-                              recurrent_initializer=k.initializers.Constant(0.0),
-                              unroll=unroll)(x)
+        if rnn_type == "rnn":
+            x = k.layers.SimpleRNN(units=units,
+                                   return_sequences=False,
+                                   kernel_initializer=initializer,
+                                   bias_initializer=k.initializers.Constant(0.1),
+                                   recurrent_initializer=recurrent_initializer,
+                                   unroll=unroll)(x)
 
             x = output_activation(x, batch_normalisation_bool, activation, name)
         else:
-            if rnn_type == "gru":
-                x = k.layers.GRU(units=units,
-                                 recurrent_activation=recurrent_activation,
-                                 return_sequences=False,
-                                 kernel_initializer=initializer,
-                                 bias_initializer=k.initializers.Constant(0.1),
-                                 recurrent_initializer=k.initializers.Constant(0.0),
-                                 unroll=unroll)(x)
+            if rnn_type == "lstm":
+                x = k.layers.LSTM(units=units,
+                                  recurrent_activation=recurrent_activation,
+                                  return_sequences=False,
+                                  kernel_initializer=initializer,
+                                  bias_initializer=k.initializers.Constant(0.1),
+                                  recurrent_initializer=recurrent_initializer,
+                                  unroll=unroll)(x)
 
                 x = output_activation(x, batch_normalisation_bool, activation, name)
+            else:
+                if rnn_type == "gru":
+                    x = k.layers.GRU(units=units,
+                                     recurrent_activation=recurrent_activation,
+                                     return_sequences=False,
+                                     kernel_initializer=initializer,
+                                     bias_initializer=k.initializers.Constant(0.1),
+                                     recurrent_initializer=recurrent_initializer,
+                                     unroll=unroll)(x)
+
+                    x = output_activation(x, batch_normalisation_bool, activation, name)
 
     return x
 

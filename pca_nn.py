@@ -225,40 +225,45 @@ def fit_model(input_model,
 
             # x = test_2.test_in_down_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True)
             # x = test_2.test_rnn_out(x, 1, "rnn", True, 540, "relu", "he_uniform", True)
-            x = test_2.test_in_down_rnn_out(x, x_skip, "prelu", False, 30, "he_uniform", 7, True, 1, "lstm", 380, "tanh", False, "he_uniform", "relu")
+            # x = test_2.test_in_down_rnn_out(x, x_skip, "prelu", False, 30, "he_uniform", 7, True, 1, "lstm", True, 380, "sigmoid", False, True, "glorot_normal", "glorot_uniform", "tanh", False)
 
             # x = test_2.test_in_down_out(x, x_skip, "relu", True, 45, "he_uniform", 7, True)
             # x = test_2.test_rnn_out(x, 1, "rnn", True, 50, "relu", "he_uniform", True)
             # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 50, "relu", "he_uniform", False)
 
             # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True, 1)
-            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 30, "he_uniform", 7, True, 1, 1, "rnn", 540, "relu", "he_uniform", False)
+            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "prelu", False, 30, "he_uniform", 7, True, 1, 1, "lstm", True, 380, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh", False)
 
             # x = test_2.test_in_down_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True)
             # x = test_2.test_rnn_out(x, 1, "rnn", True, 45, "relu", "he_uniform", True)
             # x = test_2.test_in_down_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, "rnn", 50, "relu", "he_uniform", False)
 
             # x, x_skip, x_1, x_2 = test_2.test_multi_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1)
-            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 45, "he_uniform", 3, True, 1, 1, "rnn", 50, "relu", "he_uniform", False)
+            # x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "prelu", False, 45, "he_uniform", 3, True, 1, 1, "lstm", True, 50, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh", False)
 
             # x, x_skip, x_3, x_4 = test_2.test_multi_out(x, x_skip, "relu", True, 30, "he_uniform", 4, True, 1)
             # x, x_skip, x_3, x_4 = test_2.test_multi_rnn_out(x, x_skip, "prelu", True, 30, "he_uniform", 4, True, 1, 1, "rnn", 540, "hard_sigmoid", "glorot_uniform", False)
 
-            x = network.output_module_1(x, "rnn", output_size, "tanh", "he_normal", False, True, "linear", "output")
+            # x = network.output_module(x, output_size, "glorot_normal", False, "linear", "output")
+            # x = network.output_module_1(x, True, "lstm", output_size, "linear", "glorot_normal", "glorot_uniform", False, "output", "sigmoid", True)
 
-            # x_1 = network.output_module_1(x_1, "rnn", output_size, "linear", "relu", "glorot_uniform", "he0_uniform", False, "output_1")
-            # x_2 = network.output_module_2(x_2, "glorot_uniform", "linear", "output_2")
+            x_1 = network.output_module_1(x_1, True, "lstm", output_size, "linear", "glorot_normal", "glorot_uniform", False, "output_1", "sigmoid", True)
+            x_2 = network.output_module_2(x_2, "glorot_normal", True, "linear", "output_2")
 
             # x_3 = network.output_module_1(x_3, "rnn", output_size, "linear", "hard_sigmoid", "glorot_uniform", "glorot_uniform", False, "output_3")
             # x_4 = network.output_module_2(x_4, "glorot_uniform", "linear", "output_4")
 
-            model = k.Model(inputs=input_x, outputs=x)
-            # model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            # model = k.Model(inputs=input_x, outputs=x)
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
             # model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_3, x_4])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error)
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error)
+
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.0, nesterov=False, clipnorm=1.0), loss=k.losses.mean_squared_error, loss_weights=[0.9, 0.1])
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error, loss_weights=[0.9, 0.1])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -290,13 +295,12 @@ def fit_model(input_model,
         with open(output_path + "/batch_size", "r") as file:
             batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.0001,
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.0,
                                                   cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback],
-                  verbose=1)
-        # model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        # model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
         # model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
@@ -305,11 +309,10 @@ def fit_model(input_model,
             with open(output_path + "/lr", "w") as file:
                 file.write(str(output_lr))
 
-            # max_batch_size = 60
-            max_batch_size = 30
+            max_batch_size = data_window_size / 10.0
 
             if batch_size <= max_batch_size:
-                batch_size = batch_size * 2
+                batch_size = batch_size + 1
 
             if batch_size > max_batch_size:
                 batch_size = max_batch_size
@@ -600,12 +603,45 @@ def zscore(input_path, output_path):
         np.save(output_path[i], data_array.astype(np.float32))
 
 
+def concat_array_list(data):
+    data_list = []
+
+    for i in range(len(data)):
+        temp_list = []
+
+        new_data = np.load(data[i])
+
+        for j in range(len(data_list)):
+            temp_list.append(data_list[j])
+
+        for j in range(len(new_data)):
+            temp_list.append(new_data[j])
+
+        data_list = temp_list
+
+    return np.asfarray(data_list)
+
+
+def concat_one_input(x, y):
+    x_output = "x_one_input.npy"
+    y_output = "y_one_input.npy"
+
+    x_data = concat_array_list(x)
+    y_data = concat_array_list(y)
+
+    np.save(x_output, x_data.astype(np.float32))
+    np.save(y_output, y_data.astype(np.float32))
+
+    return [x_output], [y_output]
+
+
 def main(fit_model_bool, while_bool, load_bool):
     save_bool = True
     plot_bool = True
     apply_bool = False
     passthrough_bool = False
-    single_input_bool = True
+    single_input_bool = False
+    concat_one_input_bool = True
     tof_bool = False
     stochastic_bool = True
     flip_bool = False
@@ -691,18 +727,12 @@ def main(fit_model_bool, while_bool, load_bool):
     window_size = 40
     window_stride_size = math.floor(window_size / 2.0)
 
-    if tof_bool:
-        data_window_size = window_size
-    else:
-        # data_window_size = window_stride_size * 20
-
-        data_window_size = window_stride_size * 10
-
-    data_window_stride_size = data_window_size
-
     if fit_model_bool:
         window_stride_size = 1
         epochs = 2
+
+        if concat_one_input_bool:
+            x_path_list, y_path_list = concat_one_input(x_path_list, y_path_list)
 
         if load_bool:
             with open(output_path + "/path_start_point", "r") as file:
@@ -736,8 +766,15 @@ def main(fit_model_bool, while_bool, load_bool):
                 data_array = np.load(y_path_list[i])
                 data_size = data_array.shape[0]
 
+                if tof_bool:
+                    data_window_size = window_size
+                else:
+                    data_window_size = (data_size / len(x_path_orig_list)) / 10
+
                 if data_window_size >= data_size:
                     data_window_size = data_size - 1
+
+                data_window_stride_size = data_window_size
 
                 for j in range(data_start_point, data_size, data_window_stride_size):
 
@@ -803,8 +840,15 @@ def main(fit_model_bool, while_bool, load_bool):
             data_array = np.load(y_path_list[i])
             data_size = data_array.shape[0]
 
+            if tof_bool:
+                data_window_size = window_size
+            else:
+                data_window_size = (data_size / len(x_path_orig_list)) / 10
+
             if data_window_size >= data_size:
                 data_window_size = data_size - 1
+
+            data_window_stride_size = data_window_size
 
             output_list = []
 
@@ -881,4 +925,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, False)
+    main(True, True, True)

@@ -9,12 +9,11 @@ import numpy as np
 import scipy.io
 import scipy.stats
 
-import network
-import test
 import test_2
 
 
-def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size, cut_list):
+def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size,
+                     cut_list):
     out_of_bounds_bool = False
 
     if start_position + data_window_size + window_size >= data_size:
@@ -237,16 +236,21 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "prelu", True, 0.5, 30, "he_uniform", 7, True, 1, 1, "lstm", True, 380, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh", 0.5, True)
+            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 0.00001, 0.0, 36, "he_uniform", 7,
+                                                            True, 1, 1, "lstm", True, 410, "sigmoid", "glorot_normal",
+                                                            "glorot_uniform", False, True, "tanh", 0.00001, 0.0, True,
+                                                            True, True, False)
 
-            x_1 = network.output_module_1(x_1, True, "lstm", output_size, "linear", "glorot_normal", "glorot_uniform", False, "output_1", "sigmoid", True)
-            x_2 = network.output_module_2(x_2, "glorot_normal", True, "linear", "output_2")
+            x_1 = test_2.output_module_1(x_1, True, "lstm", output_size, "tanh", "glorot_normal", "glorot_uniform",
+                                         False, "sigmoid", "glorot_normal", "linear", True, False, "output_1")
+            x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", False, "output_2")
 
             model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
             lr = 0.01
 
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.9, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.0])
+            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+                          loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.01])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -278,10 +282,12 @@ def fit_model(input_model,
         with open(output_path + "/batch_size", "r") as file:
             batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.0, cooldown=1)
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.000001,
+                                                  cooldown=1, min_lr=0.0001)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr, tensorboard_callback], verbose=1)
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
+                  callbacks=[tensorboard_callback], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
 
@@ -289,7 +295,7 @@ def fit_model(input_model,
             with open(output_path + "/lr", "w") as file:
                 file.write(str(output_lr))
 
-            max_batch_size = data_window_size / 10.0
+            max_batch_size = int(data_window_size / 10)
 
             if batch_size <= max_batch_size:
                 batch_size = batch_size + 1
@@ -298,7 +304,7 @@ def fit_model(input_model,
                 batch_size = max_batch_size
 
             with open(output_path + "/batch_size", "w") as file:
-                file.write(str(batch_size))
+                file.write(str(int(batch_size)))
 
         print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
@@ -408,7 +414,6 @@ def test_model(input_model,
                                                                                      start_position) + "_" + str(i))
 
             output = [output[0]]
-
 
     for i in range(len(output)):
         current_output = output[i]
@@ -623,7 +628,7 @@ def main(fit_model_bool, while_bool, load_bool):
     plot_bool = True
     apply_bool = False
     passthrough_bool = False
-    single_input_bool = False
+    single_input_bool = True
     concat_one_input_bool = True
     tof_bool = False
     stochastic_bool = True
@@ -928,4 +933,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(False, True, False)
+    main(True, True, False)

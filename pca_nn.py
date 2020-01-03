@@ -236,21 +236,40 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            x, x_skip, x_1, x_2 = test_2.test_multi_rnn_out(x, x_skip, "relu", True, 0.00001, 0.0, 36, "he_uniform", 7,
-                                                            True, 1, 1, "lstm", True, 410, "sigmoid", "glorot_normal",
-                                                            "glorot_uniform", False, True, "tanh", 0.00001, 0.0, True,
-                                                            True, True, False)
+            x, tap, tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5 = test_2.test_multi_rnn_out(x, x_skip, "lrelu", True,
+                                                                                         0.001, 0.0, 8, output_size,
+                                                                                         "he_uniform", 7, True, 1, 1,
+                                                                                         "lstm", True, 582, 280,
+                                                                                         "sigmoid", "glorot_normal",
+                                                                                         "glorot_uniform", False, True,
+                                                                                         "tanh",
+                                                                                         0.0001, 0.5, True, True, True,
+                                                                                         True, True, True, False)
+
+            #x, tap, tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5 = test_2.test_multi_rnn_out(x, x_skip, "lrelu", True,
+            #                                                                             0.001, 0.0, 8, output_size,
+            #                                                                             "he_uniform", 7, True, 1, 1,
+            #                                                                             "lstm", True, 291, 140,
+            #                                                                             "sigmoid", "glorot_normal",
+            #                                                                             "glorot_uniform", False, True,
+            #                                                                             "tanh",
+            #                                                                             0.0001, 0.1, True, True, True,
+            #                                                                             False, False, False, False)
 
             x_1 = test_2.output_module_1(x_1, True, "lstm", output_size, "tanh", "glorot_normal", "glorot_uniform",
-                                         False, "sigmoid", "glorot_normal", "linear", True, False, "output_1")
-            x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", False, "output_2")
+                                         False, "sigmoid", "glorot_normal", "linear", True, "output_1")
+            x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2", True)
 
-            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", output_size, "tanh", "glorot_normal", "glorot_uniform",
+                                           False, "sigmoid", "glorot_normal", "linear", True, "output_3")
+            x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4", True)
+
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
 
             lr = 0.01
 
             model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                          loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.01])
+                          loss=k.losses.mean_squared_error, loss_weights=[0.5, 0.01, 0.5, 0.01])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -286,8 +305,8 @@ def fit_model(input_model,
                                                   cooldown=1, min_lr=0.0001)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
-                  callbacks=[tensorboard_callback], verbose=1)
+        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
+                  batch_size=batch_size, epochs=epochs, callbacks=[], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
 

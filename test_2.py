@@ -123,10 +123,36 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
 
 def test_module_module_down(x, filters, kernal_size, strides, initializer, batch_normalisation_bool, activation,
-                            regularisation, ltwo, dropout, feature_downsample_bool, name):
+                            regularisation, ltwo, dropout, feature_downsample_bool, name, deep_bool):
     feature_downsample_filters = int(filters / 2)
 
     if regularisation:
+        if deep_bool:
+            if feature_downsample_bool:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(kernal_size, kernal_size, kernal_size),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l2(ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="down_reg_deep_{0}".format(name)))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
+                                                                    kernel_size=(kernal_size, kernal_size, kernal_size),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l2(ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="down_reg_deep_{0}".format(name)))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+
         x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                             kernel_size=(kernal_size, kernal_size, kernal_size),
                                                             strides=(strides, strides, strides),
@@ -152,6 +178,28 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
     else:
+        if deep_bool:
+            if feature_downsample_bool:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(kernal_size, kernal_size, kernal_size),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="down_deep_{0}".format(name)))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
+                                                                    kernel_size=(kernal_size, kernal_size, kernal_size),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="down_deep_{0}".format(name)))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+
         x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                             kernel_size=(kernal_size, kernal_size, kernal_size),
                                                             strides=(strides, strides, strides),
@@ -177,34 +225,43 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
 
 def test_module_down(x, filters, initializer, batch_normalisation_bool, activation, regularisation, ltwo, dropout,
-                     feature_downsample_bool, concat_bool, name):
+                     feature_downsample_bool, concat_bool, name, deep_bool):
     if concat_bool:
         concat_filters = int(filters / 4)
 
         x_1 = test_module_module_down(x, concat_filters, 3, 2, initializer, batch_normalisation_bool, activation,
-                                      regularisation, ltwo, dropout, feature_downsample_bool, "3_{0}".format(name))
+                                      regularisation, ltwo, dropout, feature_downsample_bool, "3_{0}".format(name),
+                                      deep_bool)
 
         x_2 = test_module_module_down(x, concat_filters, 5, 2, initializer, batch_normalisation_bool, activation,
-                                      regularisation, ltwo, dropout, feature_downsample_bool, "5_{0}".format(name))
+                                      regularisation, ltwo, dropout, feature_downsample_bool, "5_{0}".format(name),
+                                      deep_bool)
 
         x_3 = test_module_module_down(x, concat_filters, 7, 2, initializer, batch_normalisation_bool, activation,
-                                      regularisation, ltwo, dropout, feature_downsample_bool, "7_{0}".format(name))
+                                      regularisation, ltwo, dropout, feature_downsample_bool, "7_{0}".format(name),
+                                      deep_bool)
 
         x_4 = test_module_module_down(x, concat_filters, 9, 2, initializer, batch_normalisation_bool, activation,
-                                      regularisation, ltwo, dropout, feature_downsample_bool, "9_{0}".format(name))
+                                      regularisation, ltwo, dropout, feature_downsample_bool, "9_{0}".format(name),
+                                      deep_bool)
 
         x = k.layers.Concatenate(axis=5)([x_1, x_2, x_3, x_4])
     else:
         x = test_module_module_down(x, filters, 3, 2, initializer, batch_normalisation_bool, activation,
-                                    regularisation, ltwo, dropout, feature_downsample_bool, "3_{0}".format(name))
+                                    regularisation, ltwo, dropout, feature_downsample_bool, "3_{0}".format(name),
+                                    deep_bool)
 
     return x
 
 
 def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool, activation,
-              regularisation, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool, ascending_bool):
-    tap = None
-    tap_skip = None
+              regularisation, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool, ascending_bool,
+              deep_bool):
+    high_tap = None
+    high_tap_skip = None
+
+    mid_tap = None
+    mid_tap_skip = None
 
     for i in range(layers):
         x_skip.append(x)
@@ -216,19 +273,48 @@ def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool,
         if ascending_bool:
             ascending_filters = filters * (i + 1)
 
+            feature_downsample_filters = int(ascending_filters / 2)
+
+            if regularisation:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l2(ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="ascending_skip_washer_reg"))(x)
+
+                x = test_activation(x, False, "linear", False, 0.0)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="ascending_skip_washer"))(x)
+
+                x = test_activation(x, False, "linear", False, 0.0)
+
         x = test_module_down(x, ascending_filters, initializer, batch_normalisation_bool, activation, regularisation,
-                             ltwo, dropout, feature_downsample_bool, concat_bool, str(i))
+                             ltwo, dropout, feature_downsample_bool, concat_bool, str(i), deep_bool)
 
         if skip_bool:
             x = test_crop(x, x_res_skip)
             x_res_skip = test_crop(x_res_skip, x)
             x = k.layers.Add()([x, x_res_skip])
 
-        if i == 3:
-            tap = x
-            tap_skip = x_skip
+        if i == 0:
+            high_tap = x
+            high_tap_skip = x_skip
+        else:
+            if i == 2:
+                mid_tap = x
+                mid_tap_skip = x_skip
 
-    return x, tap, tap_skip, x_skip
+    return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip
 
 
 def test_module_out(x):
@@ -239,17 +325,19 @@ def test_module_out(x):
 
 def test_in_down_out(x, x_skip, activation, regularisation, filters, initializer, layers,
                      batch_normalisation_bool, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
-                     dense_bool, ascending_bool):
+                     dense_bool, ascending_bool, deep_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
                 dense_bool)
 
-    x, tap, tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool, activation,
-                                         regularisation, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
-                                         ascending_bool)
+    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
+                                                                          batch_normalisation_bool, activation,
+                                                                          regularisation, ltwo, dropout,
+                                                                          feature_downsample_bool, concat_bool,
+                                                                          skip_bool, ascending_bool, deep_bool)
 
     x = test_module_out(x)
 
-    return x, tap, x_skip
+    return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip
 
 
 def test_module_rnn_internal(x, regularisation, units, activation, ltwo, dropout, return_sequences, initializer,
@@ -503,13 +591,15 @@ def test_in_down_rnn_out(x, x_skip, activation, regularisation, ltwo, dropout, f
                          rnn_return_activation, unroll, rnn_batch_normalisation_bool, rnn_initializer,
                          rnn_recurrent_initializer, rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation,
                          rnn_return_sequences, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
-                         ascending_bool):
+                         ascending_bool, deep_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
                 dense_bool)
 
-    x, tap, tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer, batch_normalisation_bool,
-                                         activation, regularisation, ltwo, dropout, feature_downsample_bool,
-                                         concat_bool, skip_bool, ascending_bool)
+    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
+                                                                          batch_normalisation_bool, activation,
+                                                                          regularisation, ltwo, dropout,
+                                                                          feature_downsample_bool, concat_bool,
+                                                                          skip_bool, ascending_bool, deep_bool)
 
     x = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x")
 
@@ -517,7 +607,7 @@ def test_in_down_rnn_out(x, x_skip, activation, regularisation, ltwo, dropout, f
                             rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_ltwo,
                             rnn_dropout, rnn_regularisation, rnn_return_sequences, "x")
 
-    return x, tap, tap_skip, x_skip
+    return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip
 
 
 def test_module_up(x, regularisation, dropout, filters, initializer, batch_normalisation_bool, activation, name):
@@ -604,54 +694,69 @@ def test_up(x, x_skip, regularisation, dropout, filters, initializer, batch_norm
 
 def test_multi_out(x, x_skip, activation, regularisation, ltwo, dropout, filters, initializer, layers,
                    batch_normalisation_bool, up_filters, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
-                   ascending_bool):
+                   ascending_bool, deep_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
                 dense_bool)
 
-    x, tap, tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool, activation,
-                                         regularisation, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
-                                         ascending_bool)
+    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
+                                                                          batch_normalisation_bool, activation,
+                                                                          regularisation, ltwo, dropout,
+                                                                          feature_downsample_bool, concat_bool,
+                                                                          skip_bool, ascending_bool, deep_bool)
 
     x_2 = test_up(x, x_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "x", skip_bool)
-    x_2_5 = test_up(tap, tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "tap",
-                    skip_bool)
+    x_2_5 = test_up(mid_tap, mid_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
+                    "tap", skip_bool)
+    x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
+                    "tap", skip_bool)
 
     x_1 = test_module_out(x)
-    x_1_5 = test_module_out(tap)
+    x_1_5 = test_module_out(mid_tap)
+    x_1_0 = test_module_out(high_tap)
 
-    return x, tap, tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5
+    return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0
 
 
 def test_multi_rnn_out(x, x_skip, activation, regularisation, ltwo, dropout, filters, output_size, initializer,
                        down_layers, batch_normalisation_bool, up_filters, out_layers, rnn_type, internal_bool, units,
-                       tap_units, rnn_return_activation, rnn_initializer, rnn_recurrent_initializer, unroll,
-                       rnn_batch_normalisation_bool, rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation,
+                       mid_tap_units, high_tap_units, rnn_return_activation, rnn_initializer, rnn_recurrent_initializer,
+                       unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation,
                        rnn_return_sequences, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
-                       ascending_bool):
+                       ascending_bool, deep_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
                 dense_bool)
 
-    x, tap, tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer, batch_normalisation_bool,
-                                         activation,
-                                         regularisation, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
-                                         ascending_bool)
+    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
+                                                                          batch_normalisation_bool, activation,
+                                                                          regularisation, ltwo, dropout,
+                                                                          feature_downsample_bool, concat_bool,
+                                                                          skip_bool, ascending_bool, deep_bool)
 
     x_2 = test_up(x, x_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "x", skip_bool)
-    x_2_5 = test_up(tap, tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "tap",
-                    skip_bool)
+    x_2_5 = test_up(mid_tap, mid_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
+                    "mid_tap", skip_bool)
+    x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
+                    "high_tap", skip_bool)
 
     x_1 = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x")
-    x_1_5 = test_washer(tap, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout,
-                        "tap")
+    x_1_5 = test_washer(mid_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
+                        dropout, "mid_tap")
+    x_1_0 = test_washer(high_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
+                        dropout, "high_tap")
 
     x_1 = test_module_rnn_out(x_1, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
                               rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_ltwo,
                               rnn_dropout, rnn_regularisation, rnn_return_sequences, "x")
-    x_1_5 = test_module_rnn_out(x_1_5, out_layers, rnn_type, internal_bool, tap_units, rnn_return_activation,
+    x_1_5 = test_module_rnn_out(x_1_5, out_layers, rnn_type, internal_bool, mid_tap_units, rnn_return_activation,
                                 rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
-                                rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "tap")
+                                rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences,
+                                "mid_tap")
+    x_1_0 = test_module_rnn_out(x_1_0, out_layers, rnn_type, internal_bool, high_tap_units, rnn_return_activation,
+                                rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
+                                rnn_activation, rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences,
+                                "high_tap")
 
-    return x, tap, tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5
+    return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0
 
 
 def output_module_1(x, internal_bool, rnn_type, units, rnn_activation, rnn_initializer, rnn_recurrent_initializer,

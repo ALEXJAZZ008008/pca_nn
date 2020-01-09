@@ -20,15 +20,12 @@ def test_activation(x, batch_normalisation_bool, activation, regularisation, dro
 
 
 def test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-            dense_bool, regularisation, lone, ltwo, dropout):
-    if feature_downsample_bool:
-        feature_downsample_filters = int(filters / 2)
-    else:
-        feature_downsample_filters = filters
+            dense_bool, regularisation, lone, ltwo, dropout, deep_bool):
+    feature_downsample_filters = int(filters / 2)
 
     x_res_skip_1 = x
 
-    x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+    x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                         kernel_size=(3, 3, 3),
                                                         strides=(1, 1, 1),
                                                         padding="same",
@@ -36,18 +33,73 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                         bias_initializer=k.initializers.Constant(0.1),
                                                         name="in"))(x)
 
-    x = test_activation(x, batch_normalisation_bool, activation, False, 0.0)
+    x = test_activation(x, True, activation, False, 0.0)
+
+    if feature_downsample_bool:
+        if regularisation:
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                kernel_size=(1, 1, 1),
+                                                                strides=(1, 1, 1),
+                                                                padding="same",
+                                                                kernel_initializer=initializer,
+                                                                bias_initializer=k.initializers.Constant(0.1),
+                                                                kernel_regularizer=k.regularizers.l1_l2(l1=lone,
+                                                                                                        l2=ltwo),
+                                                                kernel_constraint=k.constraints.UnitNorm(),
+                                                                name="in"))(x)
+
+            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        else:
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                kernel_size=(1, 1, 1),
+                                                                strides=(1, 1, 1),
+                                                                padding="same",
+                                                                kernel_initializer=initializer,
+                                                                bias_initializer=k.initializers.Constant(0.1),
+                                                                name="in"))(x)
+
+            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
     if skip_bool:
-        x = test_crop(x, x_res_skip_1)
-        x_res_skip_1 = test_crop(x_res_skip_1, x)
-        x = k.layers.Add()([x, x_res_skip_1])
+        if dense_bool:
+            x = k.layers.Concatenate(axis=5)([x, x_res_skip_1])
 
-    if dense_bool:
+            if not deep_bool:
+                if feature_downsample_bool:
+                    if regularisation:
+                        x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                            kernel_size=(1, 1, 1),
+                                                                            strides=(1, 1, 1),
+                                                                            padding="same",
+                                                                            kernel_initializer=initializer,
+                                                                            bias_initializer=k.initializers.Constant(
+                                                                                0.1),
+                                                                            kernel_regularizer=k.regularizers.l1_l2(
+                                                                                l1=lone,
+                                                                                l2=ltwo),
+                                                                            kernel_constraint=k.constraints.UnitNorm(),
+                                                                            name="in"))(x)
+
+                        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                    else:
+                        x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                            kernel_size=(1, 1, 1),
+                                                                            strides=(1, 1, 1),
+                                                                            padding="same",
+                                                                            kernel_initializer=initializer,
+                                                                            bias_initializer=k.initializers.Constant(
+                                                                                0.1),
+                                                                            name="in"))(x)
+
+                        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        else:
+            x = k.layers.Add()([x, x_res_skip_1])
+
+    if deep_bool:
         x_res_skip_2 = x
 
         if regularisation:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -60,7 +112,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
         else:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -70,19 +122,41 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
-        if skip_bool:
-            x = test_crop(x, x_res_skip_1)
-            x_res_skip_1 = test_crop(x_res_skip_1, x)
-            x = k.layers.Add()([x, x_res_skip_1])
+        if feature_downsample_bool:
+            if regularisation:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l1_l2(l1=lone,
+                                                                                                            l2=ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="in"))(x)
 
-            x = test_crop(x, x_res_skip_2)
-            x_res_skip_2 = test_crop(x_res_skip_2, x)
-            x = k.layers.Add()([x, x_res_skip_2])
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="in"))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+
+        if skip_bool:
+            if dense_bool:
+                x = k.layers.Concatenate(axis=5)([x, x_res_skip_1, x_res_skip_2])
+            else:
+                x = k.layers.Add()([x, x_res_skip_2])
 
         x_res_skip_3 = x
 
         if regularisation:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -95,7 +169,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
         else:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -105,23 +179,41 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
+        if feature_downsample_bool:
+            if regularisation:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l1_l2(l1=lone,
+                                                                                                            l2=ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="in"))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="in"))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+
         if skip_bool:
-            x = test_crop(x, x_res_skip_1)
-            x_res_skip_1 = test_crop(x_res_skip_1, x)
-            x = k.layers.Add()([x, x_res_skip_1])
-
-            x = test_crop(x, x_res_skip_2)
-            x_res_skip_2 = test_crop(x_res_skip_2, x)
-            x = k.layers.Add()([x, x_res_skip_2])
-
-            x = test_crop(x, x_res_skip_3)
-            x_res_skip_3 = test_crop(x_res_skip_3, x)
-            x = k.layers.Add()([x, x_res_skip_3])
+            if dense_bool:
+                x = k.layers.Concatenate(axis=5)([x, x_res_skip_1, x_res_skip_2, x_res_skip_3])
+            else:
+                x = k.layers.Add()([x, x_res_skip_3])
 
         x_res_skip_4 = x
 
         if regularisation:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -134,7 +226,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
         else:
-            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+            x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
                                                                 strides=(1, 1, 1),
                                                                 padding="same",
@@ -144,28 +236,54 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
 
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
+        if feature_downsample_bool:
+            if regularisation:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    kernel_regularizer=k.regularizers.l1_l2(l1=lone,
+                                                                                                            l2=ltwo),
+                                                                    kernel_constraint=k.constraints.UnitNorm(),
+                                                                    name="in"))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                    kernel_size=(1, 1, 1),
+                                                                    strides=(1, 1, 1),
+                                                                    padding="same",
+                                                                    kernel_initializer=initializer,
+                                                                    bias_initializer=k.initializers.Constant(0.1),
+                                                                    name="in"))(x)
+
+                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+
         if skip_bool:
-            x = test_crop(x, x_res_skip_1)
-            x_res_skip_1 = test_crop(x_res_skip_1, x)
-            x = k.layers.Add()([x, x_res_skip_1])
+            if dense_bool:
+                x = k.layers.Concatenate(axis=5)([x, x_res_skip_1, x_res_skip_2, x_res_skip_3, x_res_skip_4])
 
-            x = test_crop(x, x_res_skip_2)
-            x_res_skip_2 = test_crop(x_res_skip_2, x)
-            x = k.layers.Add()([x, x_res_skip_2])
+                if feature_downsample_bool:
+                    x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                        kernel_size=(1, 1, 1),
+                                                                        strides=(1, 1, 1),
+                                                                        padding="same",
+                                                                        kernel_initializer=initializer,
+                                                                        bias_initializer=k.initializers.Constant(0.1),
+                                                                        name="in"))(x)
 
-            x = test_crop(x, x_res_skip_3)
-            x_res_skip_3 = test_crop(x_res_skip_3, x)
-            x = k.layers.Add()([x, x_res_skip_3])
-
-            x = test_crop(x, x_res_skip_4)
-            x_res_skip_4 = test_crop(x_res_skip_4, x)
-            x = k.layers.Add()([x, x_res_skip_4])
+                    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            else:
+                x = k.layers.Add()([x, x_res_skip_4])
 
     return x
 
 
 def test_module_module_down(x, filters, kernal_size, strides, initializer, batch_normalisation_bool, activation,
-                            regularisation, lone, ltwo, dropout, feature_downsample_bool, name, deep_bool, skip_bool):
+                            regularisation, lone, ltwo, dropout, feature_downsample_bool, name, deep_bool, skip_bool,
+                            skip_filters_bool):
     feature_downsample_filters = int(filters / 2)
 
     if regularisation:
@@ -173,7 +291,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
             if feature_downsample_bool:
                 x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                              kernel_size=(
-                                                                             kernal_size, kernal_size, kernal_size),
+                                                                                 kernal_size, kernal_size, kernal_size),
                                                                              strides=(1, 1, 1),
                                                                              padding="same",
                                                                              kernel_initializer=initializer,
@@ -229,7 +347,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
                 x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
-            if skip_bool:
+            if skip_bool and skip_filters_bool:
                 x = test_crop(x, x_res_skip)
                 x_res_skip = test_crop(x_res_skip, x)
                 x = k.layers.Add()([x, x_res_skip])
@@ -261,9 +379,19 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
             x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
     else:
         if deep_bool:
-            x_res_skip = x
-
             if feature_downsample_bool:
+                x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                             kernel_size=(
+                                                                                 kernal_size, kernal_size, kernal_size),
+                                                                             strides=(1, 1, 1),
+                                                                             padding="same",
+                                                                             kernel_initializer=initializer,
+                                                                             bias_initializer=k.initializers.Constant(
+                                                                                 0.1),
+                                                                             name="down_reg_deep_{0}".format(name)))(x)
+
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
                                                                     strides=(1, 1, 1),
@@ -274,6 +402,18 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
                 x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
             else:
+                x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
+                                                                             kernel_size=(
+                                                                                 kernal_size, kernal_size, kernal_size),
+                                                                             strides=(1, 1, 1),
+                                                                             padding="same",
+                                                                             kernel_initializer=initializer,
+                                                                             bias_initializer=k.initializers.Constant(
+                                                                                 0.1),
+                                                                             name="down_reg_deep_{0}".format(name)))(x)
+
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
                                                                     strides=(1, 1, 1),
@@ -284,7 +424,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
                 x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
-            if skip_bool:
+            if skip_bool and skip_filters_bool:
                 x = test_crop(x, x_res_skip)
                 x_res_skip = test_crop(x_res_skip, x)
                 x = k.layers.Add()([x, x_res_skip])
@@ -314,42 +454,42 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
 
 
 def test_module_down(x, filters, initializer, batch_normalisation_bool, activation, regularisation, lone, ltwo, dropout,
-                     feature_downsample_bool, concat_bool, name, deep_bool, skip_bool):
+                     feature_downsample_bool, concat_bool, name, deep_bool, skip_bool, skip_filters_bool):
     if concat_bool:
         concat_filters = int(filters / 4)
 
         x_1 = test_module_module_down(x, concat_filters, 3, 2, initializer, batch_normalisation_bool, activation,
                                       regularisation, lone, ltwo, dropout, feature_downsample_bool,
                                       "3_{0}".format(name),
-                                      deep_bool, skip_bool)
+                                      deep_bool, skip_bool, skip_filters_bool)
 
         x_2 = test_module_module_down(x, concat_filters, 5, 2, initializer, batch_normalisation_bool, activation,
                                       regularisation, lone, ltwo, dropout, feature_downsample_bool,
                                       "5_{0}".format(name),
-                                      deep_bool, skip_bool)
+                                      deep_bool, skip_bool, skip_filters_bool)
 
         x_3 = test_module_module_down(x, concat_filters, 7, 2, initializer, batch_normalisation_bool, activation,
                                       regularisation, lone, ltwo, dropout, feature_downsample_bool,
                                       "7_{0}".format(name),
-                                      deep_bool, skip_bool)
+                                      deep_bool, skip_bool, skip_filters_bool)
 
         x_4 = test_module_module_down(x, concat_filters, 9, 2, initializer, batch_normalisation_bool, activation,
                                       regularisation, lone, ltwo, dropout, feature_downsample_bool,
                                       "9_{0}".format(name),
-                                      deep_bool, skip_bool)
+                                      deep_bool, skip_bool, skip_filters_bool)
 
         x = k.layers.Concatenate(axis=5)([x_1, x_2, x_3, x_4])
     else:
         x = test_module_module_down(x, filters, 3, 2, initializer, batch_normalisation_bool, activation,
                                     regularisation, lone, ltwo, dropout, feature_downsample_bool, "3_{0}".format(name),
-                                    deep_bool, skip_bool)
+                                    deep_bool, skip_bool, skip_filters_bool)
 
     return x
 
 
 def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool, activation,
               regularisation, lone, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool, ascending_bool,
-              deep_bool):
+              deep_bool, skip_filters_bool):
     high_tap = None
     high_tap_skip = None
 
@@ -384,23 +524,30 @@ def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool,
 
                 x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
             else:
-                x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
-                                                                    kernel_size=(1, 1, 1),
-                                                                    strides=(1, 1, 1),
-                                                                    padding="same",
-                                                                    kernel_initializer=initializer,
-                                                                    bias_initializer=k.initializers.Constant(0.1),
-                                                                    name="ascending_skip_washer"))(x_res_skip)
+                x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
+                                                                             kernel_size=(1, 1, 1),
+                                                                             strides=(1, 1, 1),
+                                                                             padding="same",
+                                                                             kernel_initializer=initializer,
+                                                                             bias_initializer=k.initializers.Constant(
+                                                                                 0.1),
+                                                                             name="ascending_skip_washer"))(x_res_skip)
 
                 x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
 
         x = test_module_down(x, ascending_filters, initializer, batch_normalisation_bool, activation, regularisation,
-                             lone, ltwo, dropout, feature_downsample_bool, concat_bool, str(i), deep_bool, skip_bool)
-
-        if skip_bool:
-            x = test_crop(x, x_res_skip)
-            x_res_skip = test_crop(x_res_skip, x)
-            x = k.layers.Add()([x, x_res_skip])
+                             lone, ltwo, dropout, feature_downsample_bool, concat_bool, str(i), deep_bool, skip_bool,
+                             skip_filters_bool)
+        if ascending_bool:
+            if skip_bool and skip_filters_bool:
+                x = test_crop(x, x_res_skip)
+                x_res_skip = test_crop(x_res_skip, x)
+                x = k.layers.Add()([x, x_res_skip])
+        else:
+            if skip_bool:
+                x = test_crop(x, x_res_skip)
+                x_res_skip = test_crop(x_res_skip, x)
+                x = k.layers.Add()([x, x_res_skip])
 
         if i == 0:
             high_tap = x
@@ -421,15 +568,16 @@ def test_module_out(x):
 
 def test_in_down_out(x, x_skip, activation, regularisation, filters, initializer, layers,
                      batch_normalisation_bool, lone, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
-                     dense_bool, ascending_bool, deep_bool):
+                     dense_bool, ascending_bool, deep_bool, skip_filters_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout)
+                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
                                                                           regularisation, lone, ltwo, dropout,
                                                                           feature_downsample_bool, concat_bool,
-                                                                          skip_bool, ascending_bool, deep_bool)
+                                                                          skip_bool, ascending_bool, deep_bool,
+                                                                          skip_filters_bool)
 
     x = test_module_out(x)
 
@@ -644,7 +792,7 @@ def test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activat
 
 
 def test_washer(x, filters, initializer, batch_normalisation_bool, activation, regularisation, dropout, name, lone,
-                ltwo, skip_bool):
+                ltwo, skip_bool, skip_filters_bool):
     if regularisation:
         x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                      kernel_size=(1, 1, 1),
@@ -692,7 +840,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
 
         x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
 
-    if skip_bool:
+    if skip_bool and skip_filters_bool:
         x = test_crop(x, x_res_skip)
         x_res_skip = test_crop(x_res_skip, x)
         x = k.layers.Add()([x, x_res_skip])
@@ -702,7 +850,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
 
 def test_module_rnn_out(x, layers, rnn_type, internal_bool, units, return_activation, initializer,
                         recurrent_initializer, unroll, batch_normalisation_bool, activation, lone, ltwo, dropout,
-                        regularisation, return_sequences, name, skip_bool):
+                        regularisation, return_sequences, name, skip_bool, skip_filters_bool):
     x = k.layers.TimeDistributed(k.layers.Flatten())(x)
 
     for i in range(1, layers):
@@ -711,23 +859,23 @@ def test_module_rnn_out(x, layers, rnn_type, internal_bool, units, return_activa
                                                 ltwo,
                                                 dropout, regularisation, True, "skip_{0}_{1}".format(name, str(i - 1)))
 
-        x = test_module_module_rnn_out(x, rnn_type, internal_bool, units, "linear", initializer,
+        x = test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activation, initializer,
                                        recurrent_initializer, unroll, batch_normalisation_bool, activation, lone, ltwo,
                                        dropout, regularisation, True, "{0}_{1}".format(name, str(i - 1)))
 
-        if skip_bool:
+        if skip_bool and skip_filters_bool:
             x = k.layers.Add()([x, x_res_skip])
 
-    x_res_skip = test_module_module_rnn_out(x, rnn_type, internal_bool, units, "linear", initializer,
+    x_res_skip = test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activation, initializer,
                                             recurrent_initializer, unroll, batch_normalisation_bool, "linear", lone,
                                             ltwo, dropout, regularisation, return_sequences,
-                                            "skip_{0}_{1}".format(name, str(layers)))
+                                            "skip_{0}_{1}".format(name, str(layers - 1)))
 
     x = test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activation, initializer,
                                    recurrent_initializer, unroll, batch_normalisation_bool, activation, lone, ltwo,
-                                   dropout, regularisation, return_sequences, "{0}_{1}".format(name, str(layers)))
+                                   dropout, regularisation, return_sequences, "{0}_{1}".format(name, str(layers - 1)))
 
-    if skip_bool:
+    if skip_bool and skip_filters_bool:
         x = k.layers.Add()([x, x_res_skip])
 
     return x
@@ -735,10 +883,10 @@ def test_module_rnn_out(x, layers, rnn_type, internal_bool, units, return_activa
 
 def test_rnn_out(x, layers, rnn_type, internal_bool, units, return_activation, initializer, recurrent_initializer,
                  unroll, batch_normalisation_bool, activation, lone, ltwo, dropout, regularisation, return_sequences,
-                 skip_bool):
+                 skip_bool, skip_filters_bool):
     x = test_module_rnn_out(x, layers, rnn_type, internal_bool, units, return_activation, recurrent_initializer,
                             initializer, unroll, batch_normalisation_bool, activation, lone, ltwo, dropout,
-                            regularisation, return_sequences, "x", skip_bool)
+                            regularisation, return_sequences, "x", skip_bool, skip_filters_bool)
 
     return x
 
@@ -748,22 +896,24 @@ def test_in_down_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, drop
                          rnn_return_activation, unroll, rnn_batch_normalisation_bool, rnn_initializer,
                          rnn_recurrent_initializer, rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
                          rnn_return_sequences, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
-                         ascending_bool, deep_bool):
+                         ascending_bool, deep_bool, skip_filters_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout)
+                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
                                                                           regularisation, lone, ltwo, dropout,
                                                                           feature_downsample_bool, concat_bool,
-                                                                          skip_bool, ascending_bool, deep_bool)
+                                                                          skip_bool, ascending_bool, deep_bool,
+                                                                          skip_filters_bool)
 
     x = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
-                    lone, ltwo, skip_bool)
+                    lone, ltwo, skip_bool, skip_filters_bool)
 
     x = test_module_rnn_out(x, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
                             rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
-                            rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "x", skip_bool)
+                            rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "x", skip_bool,
+                            skip_filters_bool)
 
     return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip
 
@@ -831,9 +981,9 @@ def test_crop(source, target):
 
 
 def test_up(x, x_skip, regularisation, dropout, filters, initializer, batch_normalisation_bool, activation, name,
-            skip_bool, lone, ltwo):
+            skip_bool, lone, ltwo, skip_filters_bool):
     x = test_washer(x, filters, initializer, batch_normalisation_bool, activation, regularisation, dropout, name, lone,
-                    ltwo, skip_bool)
+                    ltwo, skip_bool, skip_filters_bool)
 
     for i in range(len(x_skip)):
         x_res_skip = k.layers.TimeDistributed(k.layers.UpSampling3D())(x)
@@ -853,22 +1003,23 @@ def test_up(x, x_skip, regularisation, dropout, filters, initializer, batch_norm
 
 def test_multi_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, filters, initializer, layers,
                    batch_normalisation_bool, up_filters, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
-                   ascending_bool, deep_bool):
+                   ascending_bool, deep_bool, skip_filters_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout)
+                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
                                                                           regularisation, lone, ltwo, dropout,
                                                                           feature_downsample_bool, concat_bool,
-                                                                          skip_bool, ascending_bool, deep_bool)
+                                                                          skip_bool, ascending_bool, deep_bool,
+                                                                          skip_filters_bool)
 
     x_2 = test_up(x, x_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "x", skip_bool,
-                  lone, ltwo)
+                  lone, ltwo, skip_filters_bool)
     x_2_5 = test_up(mid_tap, mid_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
-                    "tap", skip_bool, lone, ltwo)
+                    "tap", skip_bool, lone, ltwo, skip_filters_bool)
     x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
-                    "tap", skip_bool, lone, ltwo)
+                    "tap", skip_bool, lone, ltwo, skip_filters_bool)
 
     x_1 = test_module_out(x)
     x_1_5 = test_module_out(mid_tap)
@@ -878,72 +1029,89 @@ def test_multi_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, f
 
 
 def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, filters, output_size, initializer,
-                       down_layers, batch_normalisation_bool, up_filters, out_layers, rnn_type, internal_bool, units,
-                       mid_tap_units, high_tap_units, rnn_return_activation, rnn_initializer, rnn_recurrent_initializer,
-                       unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout,
-                       rnn_regularisation, rnn_return_sequences, feature_downsample_bool, concat_bool, skip_bool,
-                       dense_bool, ascending_bool, deep_bool):
+                       down_layers, batch_normalisation_bool, up_filters, out_layers, mid_out_layers, high_out_layers,
+                       rnn_type, internal_bool, units, mid_tap_units, high_tap_units, rnn_return_activation,
+                       rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation,
+                       rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences,
+                       feature_downsample_bool, concat_bool, skip_bool, dense_bool, ascending_bool, deep_bool,
+                       skip_filters_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout)
+                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
                                                                           regularisation, lone, ltwo, dropout,
                                                                           feature_downsample_bool, concat_bool,
-                                                                          skip_bool, ascending_bool, deep_bool)
+                                                                          skip_bool, ascending_bool, deep_bool,
+                                                                          skip_filters_bool)
 
     x_2 = test_up(x, x_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation, "x", skip_bool,
-                  lone, ltwo)
+                  lone, ltwo, skip_filters_bool)
     x_2_5 = test_up(mid_tap, mid_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
-                    "mid_tap", skip_bool, lone, ltwo)
+                    "mid_tap", skip_bool, lone, ltwo, skip_filters_bool)
     x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
-                    "high_tap", skip_bool, lone, ltwo)
+                    "high_tap", skip_bool, lone, ltwo, skip_filters_bool)
 
     x_1 = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
-                      lone, ltwo, skip_bool)
+                      lone, ltwo, skip_bool, skip_filters_bool)
     x_1_5 = test_washer(mid_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
-                        dropout, "mid_tap", lone, ltwo, skip_bool)
+                        dropout, "mid_tap", lone, ltwo, skip_bool, skip_filters_bool)
     x_1_0 = test_washer(high_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
-                        dropout, "high_tap", lone, ltwo, skip_bool)
+                        dropout, "high_tap", lone, ltwo, skip_bool, skip_filters_bool)
 
     x_1 = test_module_rnn_out(x_1, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
                               rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
-                              rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "x", skip_bool)
-    x_1_5 = test_module_rnn_out(x_1_5, out_layers, rnn_type, internal_bool, mid_tap_units, rnn_return_activation,
+                              rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "x", skip_bool,
+                              skip_filters_bool)
+    x_1_5 = test_module_rnn_out(x_1_5, mid_out_layers, rnn_type, internal_bool, mid_tap_units, rnn_return_activation,
                                 rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
                                 rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
-                                rnn_return_sequences,
-                                "mid_tap", skip_bool)
-    x_1_0 = test_module_rnn_out(x_1_0, out_layers, rnn_type, internal_bool, high_tap_units, rnn_return_activation,
+                                rnn_return_sequences, "mid_tap", skip_bool, skip_filters_bool)
+    x_1_0 = test_module_rnn_out(x_1_0, high_out_layers, rnn_type, internal_bool, high_tap_units, rnn_return_activation,
                                 rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
                                 rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
-                                rnn_return_sequences,
-                                "high_tap", skip_bool)
+                                rnn_return_sequences, "high_tap", skip_bool, skip_filters_bool)
 
     return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0
 
 
-def output_module_1(x, internal_bool, rnn_type, units, rnn_activation, rnn_initializer, rnn_recurrent_initializer,
-                    unroll, rnn_recurrent_activation, initializer, activation, return_sequence, name, regularisation,
-                    lone, ltwo):
-    x = output_module_1_module(x, internal_bool, rnn_type, units, rnn_activation, rnn_initializer,
+def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activation, rnn_initializer,
+                    rnn_recurrent_initializer, unroll, rnn_recurrent_activation, initializer, activation,
+                    return_sequence, name, regularisation, lone, ltwo):
+    x = output_module_1_module(x, internal_bool, rnn_type, washer_units, rnn_activation, rnn_initializer,
                                rnn_recurrent_initializer, unroll, rnn_recurrent_activation, return_sequence, name,
                                regularisation, lone, ltwo)
 
     if regularisation:
-        x = k.layers.TimeDistributed(k.layers.Dense(units=1,
-                                                    kernel_initializer=initializer,
-                                                    bias_initializer=k.initializers.Constant(0.1),
-                                                    kernel_regularizer=k.regularizers.l1_l2(l1=lone, l2=ltwo),
-                                                    kernel_constraint=k.constraints.UnitNorm()))(x)
+        if return_sequence:
+            x = k.layers.TimeDistributed(k.layers.Dense(units=1,
+                                                        kernel_initializer=initializer,
+                                                        bias_initializer=k.initializers.Constant(0.1),
+                                                        kernel_regularizer=k.regularizers.l1_l2(l1=lone, l2=ltwo),
+                                                        kernel_constraint=k.constraints.UnitNorm()))(x)
 
-        x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, activation, False, 0.0)
+        else:
+            x = k.layers.Dense(units=units,
+                               kernel_initializer=initializer,
+                               bias_initializer=k.initializers.Constant(0.1),
+                               kernel_regularizer=k.regularizers.l1_l2(l1=lone, l2=ltwo),
+                               kernel_constraint=k.constraints.UnitNorm())(x)
+
+            x = test_activation(x, False, activation, False, 0.0)
     else:
-        x = k.layers.TimeDistributed(k.layers.Dense(units=1,
-                                                    kernel_initializer=initializer,
-                                                    bias_initializer=k.initializers.Constant(0.1)))(x)
+        if return_sequence:
+            x = k.layers.TimeDistributed(k.layers.Dense(units=1,
+                                                        kernel_initializer=initializer,
+                                                        bias_initializer=k.initializers.Constant(0.1)))(x)
 
-        x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, activation, False, 0.0)
+        else:
+            x = k.layers.Dense(units=units,
+                               kernel_initializer=initializer,
+                               bias_initializer=k.initializers.Constant(0.1))(x)
+
+            x = test_activation(x, False, activation, False, 0.0)
 
     x = k.layers.Reshape(tuple([t for t in x.shape.as_list() if t != 1 and t is not None]), name=name)(x)
 

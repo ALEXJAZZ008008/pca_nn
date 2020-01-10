@@ -1,9 +1,12 @@
 import keras as k
 
 
-def test_activation(x, batch_normalisation_bool, activation, regularisation, dropout):
+def test_activation(x, batch_normalisation_bool, simple_batch_normalisation_bool, activation, regularisation, dropout):
     if batch_normalisation_bool:
-        x = k.layers.BatchNormalization()(x)
+        if simple_batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+        else:
+            x = k.layers.BatchNormalization()(x)
 
     if activation == "lrelu":
         x = k.layers.LeakyReLU(alpha=0.01)(x)
@@ -33,7 +36,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                         bias_initializer=k.initializers.Constant(0.1),
                                                         name="in"))(x)
 
-    x = test_activation(x, True, activation, False, 0.0)
+    x = test_activation(x, True, True, activation, False, 0.0)
 
     if feature_downsample_bool:
         if regularisation:
@@ -48,7 +51,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 kernel_constraint=k.constraints.UnitNorm(),
                                                                 name="in"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
         else:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                 kernel_size=(1, 1, 1),
@@ -58,7 +61,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 bias_initializer=k.initializers.Constant(0.1),
                                                                 name="in"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     if skip_bool:
         if dense_bool:
@@ -80,7 +83,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                             kernel_constraint=k.constraints.UnitNorm(),
                                                                             name="in"))(x)
 
-                        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
                     else:
                         x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                             kernel_size=(1, 1, 1),
@@ -91,7 +94,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                                 0.1),
                                                                             name="in"))(x)
 
-                        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
         else:
             x = k.layers.Add()([x, x_res_skip_1])
 
@@ -110,7 +113,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 kernel_constraint=k.constraints.UnitNorm(),
                                                                 name="in_2"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
         else:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
@@ -120,7 +123,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 bias_initializer=k.initializers.Constant(0.1),
                                                                 name="in_2"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if feature_downsample_bool:
             if regularisation:
@@ -135,7 +138,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     kernel_constraint=k.constraints.UnitNorm(),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(1, 1, 1),
@@ -145,7 +148,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     bias_initializer=k.initializers.Constant(0.1),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if skip_bool:
             if dense_bool:
@@ -167,7 +170,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 kernel_constraint=k.constraints.UnitNorm(),
                                                                 name="in_3"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
         else:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
@@ -177,7 +180,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 bias_initializer=k.initializers.Constant(0.1),
                                                                 name="in_3"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if feature_downsample_bool:
             if regularisation:
@@ -192,7 +195,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     kernel_constraint=k.constraints.UnitNorm(),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(1, 1, 1),
@@ -202,7 +205,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     bias_initializer=k.initializers.Constant(0.1),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if skip_bool:
             if dense_bool:
@@ -224,7 +227,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 kernel_constraint=k.constraints.UnitNorm(),
                                                                 name="in_4"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
         else:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                 kernel_size=(3, 3, 3),
@@ -234,7 +237,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                 bias_initializer=k.initializers.Constant(0.1),
                                                                 name="in_4"))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if feature_downsample_bool:
             if regularisation:
@@ -249,7 +252,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     kernel_constraint=k.constraints.UnitNorm(),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(1, 1, 1),
@@ -259,7 +262,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                     bias_initializer=k.initializers.Constant(0.1),
                                                                     name="in"))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if skip_bool:
             if dense_bool:
@@ -274,7 +277,7 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                                         bias_initializer=k.initializers.Constant(0.1),
                                                                         name="in"))(x)
 
-                    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                    x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x = k.layers.Add()([x, x_res_skip_4])
 
@@ -303,7 +306,8 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                              kernel_constraint=k.constraints.UnitNorm(),
                                                                              name="down_reg_deep_{0}".format(name)))(x)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
 
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
@@ -316,7 +320,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                     kernel_constraint=k.constraints.UnitNorm(),
                                                                     name="down_reg_deep_{0}".format(name)))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                              kernel_size=(
@@ -332,7 +336,8 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                              kernel_constraint=k.constraints.UnitNorm(),
                                                                              name="down_reg_deep_{0}".format(name)))(x)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
 
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
@@ -345,7 +350,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                     kernel_constraint=k.constraints.UnitNorm(),
                                                                     name="down_reg_deep_{0}".format(name)))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
             if skip_bool and skip_filters_bool:
                 x = test_crop(x, x_res_skip)
@@ -362,7 +367,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                             kernel_constraint=k.constraints.UnitNorm(),
                                                             name="down_reg_{0}".format(name)))(x)
 
-        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if feature_downsample_bool:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
@@ -376,7 +381,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                 kernel_constraint=k.constraints.UnitNorm(),
                                                                 name="down_fet_reg_{0}".format(name)))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
     else:
         if deep_bool:
             if feature_downsample_bool:
@@ -390,7 +395,8 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                                  0.1),
                                                                              name="down_reg_deep_{0}".format(name)))(x)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
 
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
@@ -400,7 +406,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                     bias_initializer=k.initializers.Constant(0.1),
                                                                     name="down_deep_{0}".format(name)))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
             else:
                 x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                              kernel_size=(
@@ -412,7 +418,8 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                                  0.1),
                                                                              name="down_reg_deep_{0}".format(name)))(x)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
 
                 x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                     kernel_size=(kernal_size, kernal_size, kernal_size),
@@ -422,7 +429,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                     bias_initializer=k.initializers.Constant(0.1),
                                                                     name="down_deep_{0}".format(name)))(x)
 
-                x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+                x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
             if skip_bool and skip_filters_bool:
                 x = test_crop(x, x_res_skip)
@@ -437,7 +444,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                             bias_initializer=k.initializers.Constant(0.1),
                                                             name="down_{0}".format(name)))(x)
 
-        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
         if feature_downsample_bool:
             x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
@@ -448,7 +455,7 @@ def test_module_module_down(x, filters, kernal_size, strides, initializer, batch
                                                                 bias_initializer=k.initializers.Constant(0.1),
                                                                 name="down_fet_{0}".format(name)))(x)
 
-            x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+            x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     return x
 
@@ -522,7 +529,8 @@ def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool,
                                                                              name="ascending_skip_washer_reg"))(
                     x_res_skip)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
             else:
                 x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=feature_downsample_filters,
                                                                              kernel_size=(1, 1, 1),
@@ -533,7 +541,8 @@ def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool,
                                                                                  0.1),
                                                                              name="ascending_skip_washer"))(x_res_skip)
 
-                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+                x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation,
+                                             dropout)
 
         x = test_module_down(x, ascending_filters, initializer, batch_normalisation_bool, activation, regularisation,
                              lone, ltwo, dropout, feature_downsample_bool, concat_bool, str(i), deep_bool, skip_bool,
@@ -585,7 +594,7 @@ def test_in_down_out(x, x_skip, activation, regularisation, filters, initializer
 
 
 def test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, dropout, return_sequences, initializer,
-                             recurrent_initializer, unroll, name):
+                             recurrent_initializer, unroll, name, batch_normalisation_bool):
     if regularisation:
         x = k.layers.SimpleRNN(units=units,
                                activation=activation,
@@ -599,6 +608,9 @@ def test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, d
                                kernel_constraint=k.constraints.UnitNorm(),
                                unroll=unroll,
                                name="reg_{0}".format(name))(x)
+
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.SimpleRNN(units=units,
                                activation=activation,
@@ -609,12 +621,15 @@ def test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, d
                                unroll=unroll,
                                name="{0}".format(name))(x)
 
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+
     return x
 
 
 def test_module_lstm_internal(x, regularisation, units, activation, return_activation, lone, ltwo, dropout,
-                              return_sequences,
-                              initializer, recurrent_initializer, unroll, name):
+                              return_sequences, initializer, recurrent_initializer, unroll, name,
+                              batch_normalisation_bool):
     if regularisation:
         x = k.layers.LSTM(units=units,
                           activation=activation,
@@ -629,6 +644,9 @@ def test_module_lstm_internal(x, regularisation, units, activation, return_activ
                           kernel_constraint=k.constraints.UnitNorm(),
                           unroll=unroll,
                           name="reg_{0}".format(name))(x)
+
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.LSTM(units=units,
                           activation=activation,
@@ -640,11 +658,15 @@ def test_module_lstm_internal(x, regularisation, units, activation, return_activ
                           unroll=unroll,
                           name="{0}".format(name))(x)
 
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+
     return x
 
 
 def test_module_gru_internal(x, regularisation, units, activation, return_activation, lone, ltwo, dropout,
-                             return_sequences, initializer, recurrent_initializer, unroll, name):
+                             return_sequences, initializer, recurrent_initializer, unroll, name,
+                             batch_normalisation_bool):
     if regularisation:
         x = k.layers.GRU(units=units,
                          activation=activation,
@@ -659,6 +681,9 @@ def test_module_gru_internal(x, regularisation, units, activation, return_activa
                          kernel_constraint=k.constraints.UnitNorm(),
                          unroll=unroll,
                          name="reg_{0}".format(name))(x)
+
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.GRU(units=units,
                          activation=activation,
@@ -669,6 +694,9 @@ def test_module_gru_internal(x, regularisation, units, activation, return_activa
                          recurrent_initializer=recurrent_initializer,
                          unroll=unroll,
                          name="{0}".format(name))(x)
+
+        if batch_normalisation_bool:
+            x = k.layers.BatchNormalization(center=False, scale=False)(x)
 
     return x
 
@@ -685,6 +713,8 @@ def test_module_rnn(x, units, return_sequences, initializer, recurrent_initializ
                                kernel_constraint=k.constraints.UnitNorm(),
                                unroll=unroll,
                                name="reg_{0}".format(name))(x)
+
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
     else:
         x = k.layers.SimpleRNN(units=units,
                                return_sequences=return_sequences,
@@ -694,7 +724,7 @@ def test_module_rnn(x, units, return_sequences, initializer, recurrent_initializ
                                unroll=unroll,
                                name="{0}".format(name))(x)
 
-    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     return x
 
@@ -712,6 +742,8 @@ def test_module_lstm(x, units, return_activation, return_sequences, initializer,
                           kernel_constraint=k.constraints.UnitNorm(),
                           unroll=unroll,
                           name="reg_{0}".format(name))(x)
+
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
     else:
         x = k.layers.LSTM(units=units,
                           recurrent_activation=return_activation,
@@ -722,7 +754,7 @@ def test_module_lstm(x, units, return_activation, return_sequences, initializer,
                           unroll=unroll,
                           name="{0}".format(name))(x)
 
-    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     return x
 
@@ -740,6 +772,8 @@ def test_module_gru(x, units, return_activation, return_sequences, initializer, 
                          kernel_constraint=k.constraints.UnitNorm(),
                          unroll=unroll,
                          name="reg_{0}".format(name))(x)
+
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
     else:
         x = k.layers.GRU(units=units,
                          recurrent_activation=return_activation,
@@ -750,7 +784,7 @@ def test_module_gru(x, units, return_activation, return_sequences, initializer, 
                          unroll=unroll,
                          name="{0}".format(name))(x)
 
-    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     return x
 
@@ -761,17 +795,18 @@ def test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activat
     if internal_bool:
         if rnn_type == "rnn":
             x = test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, dropout, return_sequences,
-                                         recurrent_initializer, initializer, unroll, "rnn_int_{0}".format(name))
+                                         recurrent_initializer, initializer, unroll, "rnn_int_{0}".format(name),
+                                         batch_normalisation_bool)
         else:
             if rnn_type == "lstm":
                 x = test_module_lstm_internal(x, regularisation, units, activation, return_activation, lone, ltwo,
                                               dropout, return_sequences, recurrent_initializer, initializer, unroll,
-                                              "lstm_int_{0}".format(name))
+                                              "lstm_int_{0}".format(name), batch_normalisation_bool)
             else:
                 if rnn_type == "gru":
                     x = test_module_gru_internal(x, regularisation, units, activation, return_activation, lone, ltwo,
                                                  dropout, return_sequences, recurrent_initializer, initializer, unroll,
-                                                 "gru_int_{0}".format(name))
+                                                 "gru_int_{0}".format(name), batch_normalisation_bool)
     else:
         if rnn_type == "rnn":
             x = test_module_rnn(x, units, return_sequences, recurrent_initializer, initializer, unroll,
@@ -805,7 +840,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
                                                                      kernel_constraint=k.constraints.UnitNorm(),
                                                                      name="washer_skip_washer_reg"))(x)
 
-        x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+        x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation, dropout)
     else:
         x_res_skip = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                                      kernel_size=(1, 1, 1),
@@ -815,7 +850,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
                                                                      bias_initializer=k.initializers.Constant(0.1),
                                                                      name="washer_skip_washer"))(x)
 
-        x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, "linear", regularisation, dropout)
+        x_res_skip = test_activation(x_res_skip, batch_normalisation_bool, True, "linear", regularisation, dropout)
 
     if regularisation:
         x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
@@ -828,7 +863,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
                                                             kernel_constraint=k.constraints.UnitNorm(),
                                                             name="{0}_washer".format(name)))(x)
 
-        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
     else:
         x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
                                                             kernel_size=(3, 3, 3),
@@ -838,7 +873,7 @@ def test_washer(x, filters, initializer, batch_normalisation_bool, activation, r
                                                             bias_initializer=k.initializers.Constant(0.1),
                                                             name="{0}_washer".format(name)))(x)
 
-        x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+        x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     if skip_bool and skip_filters_bool:
         x = test_crop(x, x_res_skip)
@@ -856,8 +891,8 @@ def test_module_rnn_out(x, layers, rnn_type, internal_bool, units, return_activa
     for i in range(1, layers):
         x_res_skip = test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activation, initializer,
                                                 recurrent_initializer, unroll, batch_normalisation_bool, "linear", lone,
-                                                ltwo,
-                                                dropout, regularisation, True, "skip_{0}_{1}".format(name, str(i - 1)))
+                                                ltwo, dropout, regularisation, True,
+                                                "skip_{0}_{1}".format(name, str(i - 1)))
 
         x = test_module_module_rnn_out(x, rnn_type, internal_bool, units, return_activation, initializer,
                                        recurrent_initializer, unroll, batch_normalisation_bool, activation, lone, ltwo,
@@ -929,7 +964,7 @@ def test_module_up(x, regularisation, dropout, filters, initializer, batch_norma
                                                           bias_initializer=k.initializers.Constant(0.1),
                                                           name="up_{0}".format(name)))(x)
 
-    x = test_activation(x, batch_normalisation_bool, activation, regularisation, dropout)
+    x = test_activation(x, batch_normalisation_bool, False, activation, regularisation, dropout)
 
     x = k.layers.Reshape((int(x_shape[1]), int(x_shape[2] * 2), int(x_shape[3] * 2), int(x_shape[4] * 2), filters))(x)
 
@@ -1028,13 +1063,12 @@ def test_multi_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, f
     return x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0
 
 
-def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, filters, output_size, initializer,
-                       down_layers, batch_normalisation_bool, up_filters, out_layers, mid_out_layers, high_out_layers,
-                       rnn_type, internal_bool, units, mid_tap_units, high_tap_units, rnn_return_activation,
-                       rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation,
-                       rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences,
-                       feature_downsample_bool, concat_bool, skip_bool, dense_bool, ascending_bool, deep_bool,
-                       skip_filters_bool):
+def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, filters, initializer, down_layers,
+                       batch_normalisation_bool, up_filters, out_layers, mid_out_layers, high_out_layers, rnn_type,
+                       internal_bool, units, mid_tap_units, high_tap_units, rnn_return_activation, rnn_initializer,
+                       rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
+                       rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, feature_downsample_bool,
+                       concat_bool, skip_bool, dense_bool, ascending_bool, deep_bool, skip_filters_bool):
     x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
                 dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
@@ -1052,11 +1086,11 @@ def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropou
     x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
                     "high_tap", skip_bool, lone, ltwo, skip_filters_bool)
 
-    x_1 = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
+    x_1 = test_washer(x, units, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
                       lone, ltwo, skip_bool, skip_filters_bool)
-    x_1_5 = test_washer(mid_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
+    x_1_5 = test_washer(mid_tap, mid_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
                         dropout, "mid_tap", lone, ltwo, skip_bool, skip_filters_bool)
-    x_1_0 = test_washer(high_tap, output_size, initializer, batch_normalisation_bool, activation, regularisation,
+    x_1_0 = test_washer(high_tap, high_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
                         dropout, "high_tap", lone, ltwo, skip_bool, skip_filters_bool)
 
     x_1 = test_module_rnn_out(x_1, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
@@ -1077,10 +1111,10 @@ def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropou
 
 def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activation, rnn_initializer,
                     rnn_recurrent_initializer, unroll, rnn_recurrent_activation, initializer, activation,
-                    return_sequence, name, regularisation, lone, ltwo):
+                    return_sequence, name, regularisation, lone, ltwo, batch_normalisation_bool):
     x = output_module_1_module(x, internal_bool, rnn_type, washer_units, rnn_activation, rnn_initializer,
                                rnn_recurrent_initializer, unroll, rnn_recurrent_activation, return_sequence, name,
-                               regularisation, lone, ltwo)
+                               regularisation, lone, ltwo, batch_normalisation_bool)
 
     if regularisation:
         if return_sequence:
@@ -1090,7 +1124,7 @@ def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activat
                                                         kernel_regularizer=k.regularizers.l1_l2(l1=lone, l2=ltwo),
                                                         kernel_constraint=k.constraints.UnitNorm()))(x)
 
-            x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, False, activation, False, 0.0)
         else:
             x = k.layers.Dense(units=units,
                                kernel_initializer=initializer,
@@ -1098,20 +1132,20 @@ def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activat
                                kernel_regularizer=k.regularizers.l1_l2(l1=lone, l2=ltwo),
                                kernel_constraint=k.constraints.UnitNorm())(x)
 
-            x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, False, activation, False, 0.0)
     else:
         if return_sequence:
             x = k.layers.TimeDistributed(k.layers.Dense(units=1,
                                                         kernel_initializer=initializer,
                                                         bias_initializer=k.initializers.Constant(0.1)))(x)
 
-            x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, False, activation, False, 0.0)
         else:
             x = k.layers.Dense(units=units,
                                kernel_initializer=initializer,
                                bias_initializer=k.initializers.Constant(0.1))(x)
 
-            x = test_activation(x, False, activation, False, 0.0)
+            x = test_activation(x, False, False, activation, False, 0.0)
 
     x = k.layers.Reshape(tuple([t for t in x.shape.as_list() if t != 1 and t is not None]), name=name)(x)
 
@@ -1119,7 +1153,8 @@ def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activat
 
 
 def output_module_1_module(x, internal_bool, rnn_type, units, activation, initializer, recurrent_initializer, unroll,
-                           recurrent_activation, return_sequence, name, regularisation, lone, ltwo):
+                           recurrent_activation, return_sequence, name, regularisation, lone, ltwo,
+                           batch_normalisation_bool):
     if regularisation:
         if internal_bool:
             if rnn_type == "rnn":
@@ -1133,6 +1168,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        kernel_constraint=k.constraints.UnitNorm(),
                                        unroll=unroll,
                                        name="{0}_rnn_washer".format(name))(x)
+
+                if batch_normalisation_bool:
+                    x = k.layers.BatchNormalization(center=False, scale=False)(x)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1146,6 +1184,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       kernel_constraint=k.constraints.UnitNorm(),
                                       unroll=unroll,
                                       name="{0}_rnn_washer".format(name))(x)
+
+                    if batch_normalisation_bool:
+                        x = k.layers.BatchNormalization(center=False, scale=False)(x)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1159,6 +1200,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          kernel_constraint=k.constraints.UnitNorm(),
                                          unroll=unroll,
                                          name="{0}_rnn_washer".format(name))(x)
+
+                        if batch_normalisation_bool:
+                            x = k.layers.BatchNormalization(center=False, scale=False)(x)
         else:
             if rnn_type == "rnn":
                 x = k.layers.SimpleRNN(units=units,
@@ -1171,7 +1215,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        unroll=unroll,
                                        name="{0}_rnn_washer".format(name))(x)
 
-                x = test_activation(x, False, activation, False, 0.0)
+                x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1185,7 +1229,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       unroll=unroll,
                                       name="{0}_rnn_washer".format(name))(x)
 
-                    x = test_activation(x, False, activation, False, 0.0)
+                    x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1199,7 +1243,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          unroll=unroll,
                                          name="{0}_rnn_washer".format(name))(x)
 
-                        x = test_activation(x, False, activation, False, 0.0)
+                        x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
     else:
         if internal_bool:
             if rnn_type == "rnn":
@@ -1211,6 +1255,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        recurrent_initializer=recurrent_initializer,
                                        unroll=unroll,
                                        name="{0}_rnn_washer".format(name))(x)
+
+                if batch_normalisation_bool:
+                    x = k.layers.BatchNormalization(center=False, scale=False)(x)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1222,6 +1269,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       recurrent_initializer=recurrent_initializer,
                                       unroll=unroll,
                                       name="{0}_rnn_washer".format(name))(x)
+
+                    if batch_normalisation_bool:
+                        x = k.layers.BatchNormalization(center=False, scale=False)(x)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1233,6 +1283,9 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          recurrent_initializer=recurrent_initializer,
                                          unroll=unroll,
                                          name="{0}_rnn_washer".format(name))(x)
+
+                        if batch_normalisation_bool:
+                            x = k.layers.BatchNormalization(center=False, scale=False)(x)
         else:
             if rnn_type == "rnn":
                 x = k.layers.SimpleRNN(units=units,
@@ -1243,7 +1296,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        unroll=unroll,
                                        name="{0}_rnn_washer".format(name))(x)
 
-                x = test_activation(x, False, activation, False, 0.0)
+                x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1255,7 +1308,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       unroll=unroll,
                                       name="{0}_rnn_washer".format(name))(x)
 
-                    x = test_activation(x, False, activation, False, 0.0)
+                    x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1267,7 +1320,7 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          unroll=unroll,
                                          name="{0}_rnn_washer".format(name))(x)
 
-                        x = test_activation(x, False, activation, False, 0.0)
+                        x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
 
     return x
 
@@ -1280,7 +1333,7 @@ def output_module_2(x, initializer, activation, name):
                                                         kernel_initializer=initializer,
                                                         bias_initializer=k.initializers.Constant(0.1)))(x)
 
-    x = test_activation(x, False, activation, False, 0.0)
+    x = test_activation(x, False, False, activation, False, 0.0)
 
     x = k.layers.Reshape(tuple([t for t in x.shape.as_list() if t is not None]), name=name)(x)
 

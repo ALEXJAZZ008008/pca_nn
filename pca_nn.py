@@ -239,53 +239,64 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            regularisation = True
+            regularisation = False
+            rnn_units = 30
+            rnn_mid_tap_units = 30
+            rnn_high_tap_units = 30
+            batch_normalisation_bool = True
             rnn_lone = 0.0
             rnn_ltwo = 0.001
 
-            #x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 1, 1,
-            #    1, "lstm", True, 80, 80, 80, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh",
-            #    rnn_lone, rnn_ltwo, 0.5, regularisation, True, True, False, True, False, False, True, False)
+            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
+            #    1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid",
+            #    "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True,
+            #    True, False, True, False, False, True, False)
 
-            #x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 1, 1,
-            #    1, "lstm", True, 80, 80, 80, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh",
-            #    rnn_lone, rnn_ltwo, 0.5, regularisation, True, True, False, False, False, False, False, False)
+            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
+            #    1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid",
+            #    "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True,
+            #    True, False, False, False, False, False, False)
 
-            #x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 1, 1, 1,
-            #    "lstm", True, 80, 80, 80, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone,
-            #    rnn_ltwo, 0.5, regularisation, True, True, False, False, False, False, False, False)
+            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 2, 1, 1,
+            #    "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid", "glorot_normal",
+            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True, True, False,
+            #    False, False, False, False, False)
 
-            #x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 1, 1,
-            #    1, "lstm", True, 40, 40, 40, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh",
-            #    rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False, True, False, False, True, False)
+            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
+            #    1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
+            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
+            #    True, False, False, True, False)
 
             x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 1, 1,
-                1, "lstm", True, 35, 40, 40, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh",
-                rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False, False, False, False, False, False)
+                x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, "lecun_normal", 7, True, 1, 2, 1, 1, "lstm",
+                True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal", "glorot_uniform",
+                False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
+                False, False, False, False, False)
 
-            #x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 1, 1, 1,
-            #    "lstm", True, 40, 40, 40, "sigmoid", "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone,
-            #    rnn_ltwo, 0.0, regularisation, True, True, False, False, False, False, False, False)
+            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 2, 1, 1,
+            #    "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
+            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
+            #    False, False, False, False, False)
 
-            x_1 = test_2.output_module_1(x_1, True, "lstm", output_size, output_size, "tanh", "glorot_normal",
+            x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
                                          "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", True,
-                                         "output_1", regularisation, rnn_lone, rnn_ltwo)
+                                         "output_1", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
             x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2")
 
-            x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", output_size, output_size, "tanh", "glorot_normal",
+            x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
                                            "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", True,
-                                           "output_3", regularisation, rnn_lone, rnn_ltwo)
+                                           "output_3", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
             x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4")
 
-            x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", output_size, output_size, "tanh", "glorot_normal",
-                                           "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
-                                           "output_5", regularisation, rnn_lone, rnn_ltwo)
+            x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", rnn_high_tap_units, output_size, "tanh",
+                                           "glorot_normal", "glorot_uniform", False, "sigmoid", "glorot_normal",
+                                           "linear", False, "output_5", regularisation, rnn_lone, rnn_ltwo,
+                                           batch_normalisation_bool)
             x_2_0 = test_2.output_module_2(x_2_0, "glorot_normal", "linear", "output_6")
 
             if mid_tap_bool:

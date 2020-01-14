@@ -4,7 +4,8 @@ import keras as k
 def test_activation(x, batch_normalisation_bool, simple_batch_normalisation_bool, activation, regularisation, dropout):
     if batch_normalisation_bool:
         if simple_batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            x = k.layers.BatchNormalization()(x)
         else:
             x = k.layers.BatchNormalization()(x)
 
@@ -26,6 +27,10 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
             dense_bool, regularisation, lone, ltwo, dropout, deep_bool):
     feature_downsample_filters = int(filters / 2)
 
+    if batch_normalisation_bool:
+        pass
+        # x = k.layers.BatchNormalization(center=False, scale=False)(x)
+
     x_res_skip_1 = x
 
     x = k.layers.TimeDistributed(k.layers.Convolution3D(filters=filters,
@@ -36,7 +41,8 @@ def test_in(x, filters, initializer, batch_normalisation_bool, activation, featu
                                                         bias_initializer=k.initializers.Constant(0.1),
                                                         name="in"))(x)
 
-    x = test_activation(x, True, True, activation, False, 0.0)
+    # x = test_activation(x, batch_normalisation_bool, False, activation, False, 0.0)
+    x = test_activation(x, True, False, activation, False, 0.0)
 
     if feature_downsample_bool:
         if regularisation:
@@ -610,7 +616,8 @@ def test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, d
                                name="reg_{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.SimpleRNN(units=units,
                                activation=activation,
@@ -622,7 +629,8 @@ def test_module_rnn_internal(x, regularisation, units, activation, lone, ltwo, d
                                name="{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
 
     return x
 
@@ -646,7 +654,8 @@ def test_module_lstm_internal(x, regularisation, units, activation, return_activ
                           name="reg_{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.LSTM(units=units,
                           activation=activation,
@@ -659,7 +668,8 @@ def test_module_lstm_internal(x, regularisation, units, activation, return_activ
                           name="{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
 
     return x
 
@@ -683,7 +693,8 @@ def test_module_gru_internal(x, regularisation, units, activation, return_activa
                          name="reg_{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
     else:
         x = k.layers.GRU(units=units,
                          activation=activation,
@@ -696,7 +707,8 @@ def test_module_gru_internal(x, regularisation, units, activation, return_activa
                          name="{0}".format(name))(x)
 
         if batch_normalisation_bool:
-            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+            pass
+            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
 
     return x
 
@@ -1170,7 +1182,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        name="{0}_rnn_washer".format(name))(x)
 
                 if batch_normalisation_bool:
-                    x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                    pass
+                    # x = k.layers.BatchNormalization(center=False, scale=False)(x)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1186,7 +1199,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       name="{0}_rnn_washer".format(name))(x)
 
                     if batch_normalisation_bool:
-                        x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                        pass
+                        # x = k.layers.BatchNormalization(center=False, scale=False)(x)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1202,7 +1216,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          name="{0}_rnn_washer".format(name))(x)
 
                         if batch_normalisation_bool:
-                            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                            pass
+                            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
         else:
             if rnn_type == "rnn":
                 x = k.layers.SimpleRNN(units=units,
@@ -1257,7 +1272,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                        name="{0}_rnn_washer".format(name))(x)
 
                 if batch_normalisation_bool:
-                    x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                    pass
+                    # x = k.layers.BatchNormalization(center=False, scale=False)(x)
             else:
                 if rnn_type == "lstm":
                     x = k.layers.LSTM(units=units,
@@ -1271,7 +1287,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                       name="{0}_rnn_washer".format(name))(x)
 
                     if batch_normalisation_bool:
-                        x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                        pass
+                        # x = k.layers.BatchNormalization(center=False, scale=False)(x)
                 else:
                     if rnn_type == "gru":
                         x = k.layers.GRU(units=units,
@@ -1285,7 +1302,8 @@ def output_module_1_module(x, internal_bool, rnn_type, units, activation, initia
                                          name="{0}_rnn_washer".format(name))(x)
 
                         if batch_normalisation_bool:
-                            x = k.layers.BatchNormalization(center=False, scale=False)(x)
+                            pass
+                            # x = k.layers.BatchNormalization(center=False, scale=False)(x)
         else:
             if rnn_type == "rnn":
                 x = k.layers.SimpleRNN(units=units,

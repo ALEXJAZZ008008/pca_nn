@@ -1,13 +1,14 @@
 from __future__ import division, print_function
-from random import seed
-from random import randint
+import os
 import time
 import math
-import keras as k
-from sklearn.preprocessing import RobustScaler
+from random import seed
+from random import randint
 import numpy as np
 import scipy.io
 import scipy.stats
+from sklearn.preprocessing import RobustScaler
+import keras as k
 
 import test_2
 
@@ -239,61 +240,31 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            regularisation = False
-            rnn_units = 30
-            rnn_mid_tap_units = 30
-            rnn_high_tap_units = 30
+            regularisation = True
+            rnn_units = 20
+            rnn_mid_tap_units = 20
+            rnn_high_tap_units = 20
             batch_normalisation_bool = True
-            rnn_lone = 0.0
-            rnn_ltwo = 0.001
-
-            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
-            #    1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid",
-            #    "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True,
-            #    True, False, True, False, False, True, False)
-
-            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
-            #    1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid",
-            #    "glorot_normal", "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True,
-            #    True, False, False, False, False, False, False)
-
-            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 2, 1, 1,
-            #    "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid", "glorot_normal",
-            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation, True, True, False,
-            #    False, False, False, False, False)
-
-            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "lecun_normal", 7, True, 8, 2, 1,
-            #    1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
-            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
-            #    True, False, False, True, False)
+            rnn_lone = 0.0001
+            rnn_ltwo = 0.0001
 
             x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                x, x_skip, "selu", regularisation, 0.0001, 0.001, 0.0, 8, "lecun_normal", 7, True, 1, 2, 1, 1, "lstm",
-                True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal", "glorot_uniform",
-                False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
-                False, False, False, False, False)
+                x, x_skip, "selu", regularisation, 0.0001, 0.0001, 0.0, 8, "lecun_normal", 7, True, 8, 1, 1, 1, "gru",
+                True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid", "glorot_normal",
+                "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation,
+                True, True, False, False, False, False, False, False)
 
-            # x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #    x, x_skip, "elu", regularisation, 0.0001, 0.001, 0.0, 8, output_size, "he_uniform", 7, True, 8, 2, 1, 1,
-            #    "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
-            #    "glorot_uniform", False, True, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation, True, True, False,
-            #    False, False, False, False, False)
-
-            x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
+            x_1 = test_2.output_module_1(x_1, True, "gru", rnn_units, output_size, "tanh", "glorot_normal",
                                          "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", True,
                                          "output_1", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
             x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2")
 
-            x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
+            x_1_5 = test_2.output_module_1(x_1_5, True, "gru", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
                                            "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", True,
                                            "output_3", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
             x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4")
 
-            x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", rnn_high_tap_units, output_size, "tanh",
+            x_1_0 = test_2.output_module_1(x_1_0, True, "gru", rnn_high_tap_units, output_size, "tanh",
                                            "glorot_normal", "glorot_uniform", False, "sigmoid", "glorot_normal",
                                            "linear", False, "output_5", regularisation, rnn_lone, rnn_ltwo,
                                            batch_normalisation_bool)
@@ -313,14 +284,14 @@ def fit_model(input_model,
                 if high_tap_bool:
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.5, 1.0, 0.5, 1.0, 0.5])
+                        loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1, 1.0, 0.1, 1.0, 0.1])
                 else:
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.5, 1.0, 0.5])
+                        loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1, 1.0, 0.1])
             else:
                 model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                              loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.0])
+                              loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -352,8 +323,7 @@ def fit_model(input_model,
         with open(output_path + "/batch_size", "r") as file:
             batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, min_delta=0.000001,
-                                                  cooldown=1, min_lr=0.0001)
+        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=1, verbose=1, cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
         if mid_tap_bool:
@@ -411,6 +381,57 @@ def fit_model(input_model,
     return model, start_position, out_of_bounds_bool
 
 
+def evaluate_model(input_model,
+                   x_input_path,
+                   y_input_path,
+                   start_position,
+                   data_window_size,
+                   window_size,
+                   data_size,
+                   window_stride_size,
+                   model_input_path,
+                   cut_list):
+    print("Get test data")
+
+    x_test, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
+                                                                                     start_position,
+                                                                                     data_window_size,
+                                                                                     window_size,
+                                                                                     data_size,
+                                                                                     window_stride_size,
+                                                                                     cut_list)
+    y_test = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
+
+    if input_model is None:
+        print("No input model")
+        print("Load model from file")
+
+        model = k.models.load_model(model_input_path + "/model.h5")
+    else:
+        model = input_model
+
+    print("Applying model")
+
+    mid_tap_bool = False
+    high_tap_bool = False
+
+    if mid_tap_bool:
+        if high_tap_bool:
+            output = model.evaluate(x_test,
+                                    {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test,
+                                     "output_5": y_test, "output_6": x_test}, batch_size=1, verbose=1)
+        else:
+            output = model.evaluate(x_test,
+                                    {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test},
+                                    batch_size=1, verbose=1)
+    else:
+        output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
+
+    print('Test loss:', output[0])
+
+    return model, output[0]
+
+
 def write_to_file(file, data):
     for i in range(len(data)):
         output_string = ""
@@ -462,7 +483,7 @@ def test_model(input_model,
 
     print("Applying model")
 
-    output = model.predict(x_test)
+    output = model.predict(x_test, batch_size=1, verbose=1)
 
     if len(output) > 1:
         if len(output) > 2:
@@ -707,8 +728,9 @@ def main(fit_model_bool, while_bool, load_bool):
     plot_bool = True
     apply_bool = False
     passthrough_bool = False
-    single_input_bool = True
+    single_input_bool = False
     concat_one_input_bool = True
+    reload_data = False
     tof_bool = False
     stochastic_bool = True
     flip_bool = False
@@ -716,9 +738,18 @@ def main(fit_model_bool, while_bool, load_bool):
     output_all_bool = False
     number_of_bins = 1000000
 
+    cv_bool = True
+    cv_pos = 0
+    cv_index = 0
+
     output_to_output = 0
 
     output_path = "./results/"
+    output_prefix = ".csv"
+    cv_tracker_path = None
+
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
     if single_input_bool:
         x_path_orig_list = ["./normalised_sinos_1.mat"]
@@ -782,14 +813,94 @@ def main(fit_model_bool, while_bool, load_bool):
                             "estimated_signal_19",
                             "estimated_signal_20"]
 
-    output_prefix = ".csv"
+    test_x_path_orig_list = x_path_orig_list
+    test_y_path_orig_list = y_path_orig_list
 
-    print("Getting data")
+    test_x_path_list = x_path_list
+    test_y_path_list = y_path_list
 
-    downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
-    standardise(y_path_orig_list, y_path_list)
+    test_output_file_name = output_file_name
 
-    print("Got data")
+    if reload_data:
+        print("Getting data")
+
+        downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
+        standardise(y_path_orig_list, y_path_list)
+
+        print("Got data")
+
+    if cv_bool:
+        output_path = "./cv_{0}_results/".format(str(cv_pos))
+
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+
+        cv_tracker_path = "{0}/cv_tracker".format(output_path)
+
+        if os.path.isfile(cv_tracker_path):
+            os.remove(cv_tracker_path)
+
+        os.mknod(cv_tracker_path)
+
+        temp_x_path_orig_list = x_path_orig_list
+        temp_y_path_orig_list = y_path_orig_list
+
+        temp_x_path_list = x_path_list
+        temp_y_path_list = y_path_list
+
+        temp_output_file_name = output_file_name
+
+        x_path_orig_list = []
+        y_path_orig_list = []
+
+        x_path_list = []
+        y_path_list = []
+
+        output_file_name = []
+
+        test_x_path_orig_list = []
+        test_y_path_orig_list = []
+
+        test_x_path_list = []
+        test_y_path_list = []
+
+        test_output_file_name = []
+
+        for i in range(len(temp_x_path_orig_list)):
+            if i == cv_pos:
+                test_x_path_orig_list.append(temp_x_path_orig_list[i])
+                test_y_path_orig_list.append(temp_y_path_orig_list[i])
+
+                test_x_path_list.append(temp_x_path_list[i])
+                test_y_path_list.append(temp_y_path_list[i])
+
+                test_output_file_name.append(temp_output_file_name[i])
+            else:
+                x_path_orig_list.append(temp_x_path_orig_list[i])
+                y_path_orig_list.append(temp_y_path_orig_list[i])
+
+                x_path_list.append(temp_x_path_list[i])
+                y_path_list.append(temp_y_path_list[i])
+
+                output_file_name.append(temp_output_file_name[i])
+
+        if len(x_path_orig_list) < 1:
+            x_path_orig_list = test_x_path_orig_list
+            y_path_orig_list = test_y_path_orig_list
+
+            x_path_list = test_x_path_list
+            y_path_list = test_y_path_list
+
+            output_file_name = test_output_file_name
+
+        if len(test_x_path_orig_list) < 1:
+            test_x_path_orig_list = x_path_orig_list
+            test_path_orig_list = y_path_orig_list
+
+            test_x_path_list = x_path_list
+            test_y_path_list = y_path_list
+
+            test_output_file_name = output_file_name
 
     window_size = 40
     window_stride_size = math.floor(window_size / 2.0)
@@ -831,8 +942,12 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 print("Path: " + str(i) + "/" + str(path_length))
 
-                data_array = np.load(y_path_list[i])
-                data_size = data_array.shape[0]
+                data_size = np.load(y_path_list[i]).shape[0]
+
+                test_data_size = None
+
+                if cv_bool:
+                    test_data_size = np.load(test_y_path_list[i]).shape[0]
 
                 if tof_bool:
                     ideal_data_window_size = window_size
@@ -861,6 +976,8 @@ def main(fit_model_bool, while_bool, load_bool):
                     if not concat_one_input_bool:
                         cut_list = [data_size]
 
+                    out_of_bounds_bool = False
+
                     while_model, start_position, out_of_bounds_bool = fit_model(while_model,
                                                                                 save_bool,
                                                                                 load_bool,
@@ -882,6 +999,18 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 output_all_bool,
                                                                                 number_of_bins,
                                                                                 cut_list)
+
+                    if cv_bool:
+                        cv_index = cv_index + 1
+
+                        while_model, output = evaluate_model(while_model, test_x_path_list[0], test_y_path_list[0], 0,
+                                                             data_window_size, window_size, test_data_size,
+                                                             window_stride_size, output_path, [test_data_size])
+
+                        with open(cv_tracker_path, 'a') as file:
+                            file.write("{0}\n".format(str(output)))
+
+                        while_model.save(output_path + "/cv_model_{0}.h5".format(str(cv_index)))
 
                     with open(output_path + "/data_start_point", "w") as file:
                         file.write(str(j))
@@ -943,8 +1072,8 @@ def main(fit_model_bool, while_bool, load_bool):
                 print("Data: " + str(j) + "/" + str(data_size))
 
                 current_output, start_position, out_of_bounds_bool = test_model(model,
-                                                                                x_path_list[i],
-                                                                                y_path_list[i],
+                                                                                test_x_path_list[i],
+                                                                                test_y_path_list[i],
                                                                                 i,
                                                                                 j,
                                                                                 data_window_size,

@@ -193,7 +193,9 @@ def fit_model(input_model,
               epochs,
               output_all_bool,
               number_of_bins,
-              cut_list):
+              cut_list,
+              mid_tap_bool,
+              high_tap_bool):
     print("Get training data")
 
     if stochastic_bool:
@@ -219,9 +221,6 @@ def fit_model(input_model,
                         data_size,
                         window_stride_size,
                         out_of_bounds_bool)
-
-    mid_tap_bool = False
-    high_tap_bool = False
 
     if input_model is None:
         print("No input model")
@@ -390,7 +389,9 @@ def evaluate_model(input_model,
                    data_size,
                    window_stride_size,
                    model_input_path,
-                   cut_list):
+                   cut_list,
+                   mid_tap_bool,
+                   high_tap_bool):
     print("Get test data")
 
     x_test, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
@@ -412,9 +413,6 @@ def evaluate_model(input_model,
 
     print("Applying model")
 
-    mid_tap_bool = False
-    high_tap_bool = False
-
     if mid_tap_bool:
         if high_tap_bool:
             output = model.evaluate(x_test,
@@ -427,9 +425,20 @@ def evaluate_model(input_model,
     else:
         output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
 
-    print('Test loss:', output[0])
+    if mid_tap_bool:
+        if high_tap_bool:
+            output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}'.format(
+                output[0], output[1], output[2], output[3], output[4], output[5], output[6])
+        else:
+            output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}'.format(
+                output[0], output[1], output[2], output[3], output[4])
+    else:
+        output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}'.format(output[0], output[1],
+                                                                                                  output[2])
 
-    return model, output[0]
+    print(output_string)
+
+    return model, output_string
 
 
 def write_to_file(file, data):
@@ -740,7 +749,6 @@ def main(fit_model_bool, while_bool, load_bool):
 
     cv_bool = True
     cv_pos = 0
-    cv_index = 0
 
     output_to_output = 0
 
@@ -837,10 +845,8 @@ def main(fit_model_bool, while_bool, load_bool):
 
         cv_tracker_path = "{0}/cv_tracker".format(output_path)
 
-        if os.path.isfile(cv_tracker_path):
-            os.remove(cv_tracker_path)
-
-        os.mknod(cv_tracker_path)
+        if not os.path.isfile(cv_tracker_path):
+            os.mknod(cv_tracker_path)
 
         temp_x_path_orig_list = x_path_orig_list
         temp_y_path_orig_list = y_path_orig_list
@@ -911,6 +917,9 @@ def main(fit_model_bool, while_bool, load_bool):
 
         cut_list = []
 
+        mid_tap_bool = False
+        high_tap_bool = False
+
         if concat_one_input_bool:
             x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list)
 
@@ -920,6 +929,9 @@ def main(fit_model_bool, while_bool, load_bool):
 
             with open(output_path + "/data_start_point", "r") as file:
                 data_start_point = int(file.read())
+
+            with open(output_path + "/cv_index", "r") as file:
+                cv_index = int(file.read())
         else:
             path_start_point = 0
 
@@ -930,6 +942,11 @@ def main(fit_model_bool, while_bool, load_bool):
 
             with open(output_path + "/data_start_point", "w") as file:
                 file.write(str(data_start_point))
+
+            cv_index = 0
+
+            with open(output_path + "/cv_index", "w") as file:
+                file.write(str(cv_index))
 
         path_length = len(x_path_list)
 
@@ -998,19 +1015,25 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 epochs,
                                                                                 output_all_bool,
                                                                                 number_of_bins,
-                                                                                cut_list)
+                                                                                cut_list,
+                                                                                mid_tap_bool,
+                                                                                high_tap_bool)
 
                     if cv_bool:
                         cv_index = cv_index + 1
 
                         while_model, output = evaluate_model(while_model, test_x_path_list[0], test_y_path_list[0], 0,
                                                              data_window_size, window_size, test_data_size,
-                                                             window_stride_size, output_path, [test_data_size])
+                                                             window_stride_size, output_path, [test_data_size],
+                                                             mid_tap_bool, high_tap_bool)
 
                         with open(cv_tracker_path, 'a') as file:
                             file.write("{0}\n".format(str(output)))
 
                         while_model.save(output_path + "/cv_model_{0}.h5".format(str(cv_index)))
+
+                        with open(output_path + "/cv_index", "w") as file:
+                            file.write(str(cv_index))
 
                     with open(output_path + "/data_start_point", "w") as file:
                         file.write(str(j))

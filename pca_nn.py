@@ -450,7 +450,7 @@ def evaluate_model(input_model,
     #    output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}'.format(output[0], output[1],
     #                                                                                              output[2])
 
-    output_string = 'Test loss: {0}'.format(output[0])
+    output_string = 'Test loss: {0}'.format(output)
 
     print(output_string)
 

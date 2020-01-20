@@ -584,8 +584,8 @@ def test_module_out(x):
 def test_in_down_out(x, x_skip, activation, regularisation, filters, initializer, layers,
                      batch_normalisation_bool, lone, ltwo, dropout, feature_downsample_bool, concat_bool, skip_bool,
                      dense_bool, ascending_bool, deep_bool, skip_filters_bool):
-    x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
+    #x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
+    #            dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
@@ -944,8 +944,8 @@ def test_in_down_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, drop
                          rnn_recurrent_initializer, rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
                          rnn_return_sequences, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
                          ascending_bool, deep_bool, skip_filters_bool):
-    x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
+    #x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
+    #            dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
@@ -954,8 +954,8 @@ def test_in_down_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, drop
                                                                           skip_bool, ascending_bool, deep_bool,
                                                                           skip_filters_bool)
 
-    x = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
-                    lone, ltwo, skip_bool, skip_filters_bool)
+    #x = test_washer(x, output_size, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
+    #                lone, ltwo, skip_bool, skip_filters_bool)
 
     x = test_module_rnn_out(x, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
                             rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
@@ -1029,8 +1029,8 @@ def test_crop(source, target):
 
 def test_up(x, x_skip, regularisation, dropout, filters, initializer, batch_normalisation_bool, activation, name,
             skip_bool, lone, ltwo, skip_filters_bool):
-    x = test_washer(x, filters, initializer, batch_normalisation_bool, activation, regularisation, dropout, name, lone,
-                    ltwo, skip_bool, skip_filters_bool)
+    #x = test_washer(x, filters, initializer, batch_normalisation_bool, activation, regularisation, dropout, name, lone,
+    #                ltwo, skip_bool, skip_filters_bool)
 
     for i in range(len(x_skip)):
         x_res_skip = k.layers.TimeDistributed(k.layers.UpSampling3D())(x)
@@ -1051,8 +1051,8 @@ def test_up(x, x_skip, regularisation, dropout, filters, initializer, batch_norm
 def test_multi_out(x, x_skip, activation, regularisation, lone, ltwo, dropout, filters, initializer, layers,
                    batch_normalisation_bool, up_filters, feature_downsample_bool, concat_bool, skip_bool, dense_bool,
                    ascending_bool, deep_bool, skip_filters_bool):
-    x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
+    #x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
+    #            dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
@@ -1081,8 +1081,8 @@ def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropou
                        rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
                        rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, feature_downsample_bool,
                        concat_bool, skip_bool, dense_bool, ascending_bool, deep_bool, skip_filters_bool):
-    x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
-                dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
+    #x = test_in(x, filters, initializer, batch_normalisation_bool, activation, feature_downsample_bool, skip_bool,
+    #            dense_bool, regularisation, lone, ltwo, dropout, deep_bool)
 
     x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip = test_down(x, x_skip, down_layers, filters, initializer,
                                                                           batch_normalisation_bool, activation,
@@ -1098,22 +1098,22 @@ def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropou
     x_2_0 = test_up(high_tap, high_tap_skip, False, 0.0, up_filters, initializer, batch_normalisation_bool, activation,
                     "high_tap", skip_bool, lone, ltwo, skip_filters_bool)
 
-    x_1 = test_washer(x, units, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
-                      lone, ltwo, skip_bool, skip_filters_bool)
-    x_1_5 = test_washer(mid_tap, mid_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
-                        dropout, "mid_tap", lone, ltwo, skip_bool, skip_filters_bool)
-    x_1_0 = test_washer(high_tap, high_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
-                        dropout, "high_tap", lone, ltwo, skip_bool, skip_filters_bool)
+    #x_1 = test_washer(x, units, initializer, batch_normalisation_bool, activation, regularisation, dropout, "x",
+    #                  lone, ltwo, skip_bool, skip_filters_bool)
+    #x_1_5 = test_washer(mid_tap, mid_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
+    #                    dropout, "mid_tap", lone, ltwo, skip_bool, skip_filters_bool)
+    #x_1_0 = test_washer(high_tap, high_tap_units, initializer, batch_normalisation_bool, activation, regularisation,
+    #                    dropout, "high_tap", lone, ltwo, skip_bool, skip_filters_bool)
 
-    x_1 = test_module_rnn_out(x_1, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
+    x_1 = test_module_rnn_out(x, out_layers, rnn_type, internal_bool, units, rnn_return_activation, rnn_initializer,
                               rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool, rnn_activation, rnn_lone,
                               rnn_ltwo, rnn_dropout, rnn_regularisation, rnn_return_sequences, "x", skip_bool,
                               skip_filters_bool)
-    x_1_5 = test_module_rnn_out(x_1_5, mid_out_layers, rnn_type, internal_bool, mid_tap_units, rnn_return_activation,
+    x_1_5 = test_module_rnn_out(mid_tap, mid_out_layers, rnn_type, internal_bool, mid_tap_units, rnn_return_activation,
                                 rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
                                 rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
                                 rnn_return_sequences, "mid_tap", skip_bool, skip_filters_bool)
-    x_1_0 = test_module_rnn_out(x_1_0, high_out_layers, rnn_type, internal_bool, high_tap_units, rnn_return_activation,
+    x_1_0 = test_module_rnn_out(high_tap, high_out_layers, rnn_type, internal_bool, high_tap_units, rnn_return_activation,
                                 rnn_initializer, rnn_recurrent_initializer, unroll, rnn_batch_normalisation_bool,
                                 rnn_activation, rnn_lone, rnn_ltwo, rnn_dropout, rnn_regularisation,
                                 rnn_return_sequences, "high_tap", skip_bool, skip_filters_bool)
@@ -1124,9 +1124,9 @@ def test_multi_rnn_out(x, x_skip, activation, regularisation, lone, ltwo, dropou
 def output_module_1(x, internal_bool, rnn_type, washer_units, units, rnn_activation, rnn_initializer,
                     rnn_recurrent_initializer, unroll, rnn_recurrent_activation, initializer, activation,
                     return_sequence, name, regularisation, lone, ltwo, batch_normalisation_bool):
-    x = output_module_1_module(x, internal_bool, rnn_type, washer_units, rnn_activation, rnn_initializer,
-                               rnn_recurrent_initializer, unroll, rnn_recurrent_activation, return_sequence, name,
-                               regularisation, lone, ltwo, batch_normalisation_bool)
+    #x = output_module_1_module(x, internal_bool, rnn_type, washer_units, rnn_activation, rnn_initializer,
+    #                           rnn_recurrent_initializer, unroll, rnn_recurrent_activation, return_sequence, name,
+    #                           regularisation, lone, ltwo, batch_normalisation_bool)
 
     if regularisation:
         if return_sequence:

@@ -439,16 +439,18 @@ def evaluate_model(input_model,
     else:
         output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
 
-    if mid_tap_bool:
-        if high_tap_bool:
-            output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}'.format(
-                output[0], output[1], output[2], output[3], output[4], output[5], output[6])
-        else:
-            output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}'.format(
-                output[0], output[1], output[2], output[3], output[4])
-    else:
-        output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}'.format(output[0], output[1],
-                                                                                                  output[2])
+    #if mid_tap_bool:
+    #    if high_tap_bool:
+    #        output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}'.format(
+    #            output[0], output[1], output[2], output[3], output[4], output[5], output[6])
+    #    else:
+    #        output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}'.format(
+    #            output[0], output[1], output[2], output[3], output[4])
+    #else:
+    #    output_string = 'Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}'.format(output[0], output[1],
+    #                                                                                              output[2])
+
+    output_string = 'Test loss: {0}'.format(output[0])
 
     print(output_string)
 

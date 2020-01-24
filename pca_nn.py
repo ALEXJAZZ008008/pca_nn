@@ -26,7 +26,7 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
     x = []
 
-    sinos_array = np.load(input_path)
+    sinos_array = np.load(input_path, mmap_mode='c')
 
     data_load_out_of_bounds_bool = False
 
@@ -67,10 +67,27 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
         x.append(np.asfarray(x_window))
 
+    x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(np.float32)
+    x_array_noisy = x_array
+
+    for i in range(len(x_array_noisy)):
+        x_array_noisy_minimum = np.nanmin(x_array_noisy[i])
+        x_array_noisy[i] = x_array_noisy[i] - x_array_noisy_minimum
+
+        x_array_noisy_sum = np.nansum(x_array_noisy[i])
+        total_counts_in_one_half_second = 375000.0
+        x_array_noisy_scale_factor = float(total_counts_in_one_half_second / float(x_array_noisy_sum))
+
+        x_array_noisy[i] = x_array_noisy[i] * x_array_noisy_scale_factor
+
+        x_array_noisy[i] = np.random.poisson(x_array_noisy[i])
+
+        x_array_noisy[i] = x_array_noisy[i] / x_array_noisy_scale_factor
+        x_array_noisy[i] = x_array_noisy[i] + x_array_noisy_minimum
+
     print("Got x")
 
-    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(
-        np.float32), start_position, out_of_bounds_bool, stochastic_i_list
+    return x_array, x_array_noisy, start_position, out_of_bounds_bool, stochastic_i_list
 
 
 def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list):
@@ -78,7 +95,7 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
 
     y = []
 
-    test_array = np.load(input_path)
+    test_array = np.load(input_path, mmap_mode='c')
 
     data_load_out_of_bounds_bool = False
 
@@ -116,7 +133,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     x = []
 
-    sinos_array = np.load(input_path)
+    sinos_array = np.load(input_path, mmap_mode='c')
 
     data_load_out_of_bounds_bool = False
 
@@ -147,7 +164,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     y = []
 
-    test_array = np.load(input_path)
+    test_array = np.load(input_path, mmap_mode='c')
 
     data_load_out_of_bounds_bool = False
 
@@ -198,14 +215,16 @@ def fit_model(input_model,
               high_tap_bool):
     print("Get training data")
 
+    x_train_noisy = None
+
     if stochastic_bool:
-        x_train, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
-                                                                                          start_position,
-                                                                                          data_window_size,
-                                                                                          window_size,
-                                                                                          data_size,
-                                                                                          window_stride_size,
-                                                                                          cut_list)
+        x_train, x_train_noisy, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
+                                                                                                         start_position,
+                                                                                                         data_window_size,
+                                                                                                         window_size,
+                                                                                                         data_size,
+                                                                                                         window_stride_size,
+                                                                                                         cut_list)
         y_train = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
     else:
         x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
@@ -222,6 +241,9 @@ def fit_model(input_model,
                         window_stride_size,
                         out_of_bounds_bool)
 
+    if x_train_noisy is None:
+        x_train_noisy = x_train
+
     if input_model is None:
         print("No input model")
 
@@ -234,32 +256,36 @@ def fit_model(input_model,
 
             output_size = y_train.shape[1:][0]
 
-            input_x = k.layers.Input(x_train.shape[1:])
+            input_x = k.layers.Input(x_train_noisy.shape[1:])
 
             x = input_x
             x_skip = []
 
+            base_units = 16
+            regularisation_epsilon = 0.0001
+
             regularisation = False
-            rnn_units = 40
-            rnn_mid_tap_units = 40
-            rnn_high_tap_units = 40
+            rnn_units = base_units * 10
+            rnn_mid_tap_units = base_units * 10
+            rnn_high_tap_units = base_units * 10
             batch_normalisation_bool = True
-            rnn_lone = 0.0001
-            rnn_ltwo = 0.0001
+            rnn_lone = regularisation_epsilon
+            rnn_ltwo = regularisation_epsilon
 
             if regularisation:
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                    x, x_skip, "selu", regularisation, 0.0001, 0.0001, 0.0, 8, "lecun_normal", 7, True, 4, 1, 1, 1,
-                    "lstm",
-                    True, rnn_units * 2, rnn_mid_tap_units * 2, rnn_high_tap_units * 2, "sigmoid", "glorot_normal",
-                    "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.5, regularisation,
-                    False, True, False, False, False, False, False, False)
+                    x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
+                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2,
+                                                                                rnn_high_tap_units * 2, "sigmoid",
+                    "glorot_normal", "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.5,
+                    regularisation, False, False, False,
+                    False, False, False, False, False)
             else:
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                    x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, 8, "lecun_normal", 7, True, 4, 1, 1, 1, "lstm",
+                    x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, 8, "lecun_normal", 7, True, 8, 1, 1, 1, "lstm",
                     True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
                     "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation,
-                    False, True, False, False, False, False, False, False)
+                    False, False, False, False, False, False, False, False)
 
             x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
                                          "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
@@ -277,33 +303,31 @@ def fit_model(input_model,
                                            batch_normalisation_bool)
             x_2_0 = test_2.output_module_2(x_2_0, "glorot_normal", "linear", "output_6")
 
-            # if mid_tap_bool:
-            #    if high_tap_bool:
-            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0])
-            #    else:
-            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
-            # else:
-            #    model = k.Model(inputs=input_x, outputs=[x_1, x_2])
-
-            model = k.Model(inputs=input_x, outputs=x_1)
+            if mid_tap_bool:
+                if high_tap_bool:
+                    model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0])
+                else:
+                    model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
+            else:
+                model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
             lr = 0.01
 
-            # if mid_tap_bool:
-            #    if high_tap_bool:
-            #        model.compile(
-            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-            #            loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1, 1.0, 0.1, 1.0, 0.1])
-            #    else:
-            #        model.compile(
-            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-            #            loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1, 1.0, 0.1])
-            # else:
-            #    model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-            #                  loss=k.losses.mean_squared_error, loss_weights=[1.0, 0.1])
-
-            model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                          loss=k.losses.mean_squared_error)
+            if mid_tap_bool:
+                if high_tap_bool:
+                    model.compile(
+                        optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+                        loss=k.losses.mean_squared_error, loss_weights=[0.3, regularisation_epsilon, 0.3,
+                                                                        regularisation_epsilon, 0.3,
+                                                                        regularisation_epsilon])
+                else:
+                    model.compile(
+                        optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+                        loss=k.losses.mean_squared_error, loss_weights=[0.5, regularisation_epsilon, 0.5,
+                                                                        regularisation_epsilon])
+            else:
+                model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+                              loss=k.losses.mean_squared_error, loss_weights=[1.0, regularisation_epsilon])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -339,19 +363,19 @@ def fit_model(input_model,
                                                   cooldown=1)
         tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        # if mid_tap_bool:
-        #    if high_tap_bool:
-        #        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train,
-        #                            "output_5": y_train, "output_6": x_train}, batch_size=batch_size, epochs=epochs,
-        #                  callbacks=[reduce_lr], verbose=1)
-        #    else:
-        #        model.fit(x_train, {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
-        #                  batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
-        # else:
-        #    model.fit(x_train, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
-        #              callbacks=[reduce_lr], verbose=1)
-
-        model.fit(x_train, {"output_1": y_train}, batch_size=batch_size, epochs=epochs, verbose=1)
+        if mid_tap_bool:
+            if high_tap_bool:
+                model.fit(x_train_noisy,
+                          {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train,
+                           "output_5": y_train, "output_6": x_train}, batch_size=batch_size, epochs=epochs,
+                          callbacks=[reduce_lr], verbose=1)
+            else:
+                model.fit(x_train_noisy,
+                          {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
+                          batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
+        else:
+            model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
+                      callbacks=[reduce_lr], verbose=1)
 
         output_lr = float(k.backend.get_value(model.optimizer.lr))
 
@@ -410,13 +434,13 @@ def evaluate_model(input_model,
                    high_tap_bool):
     print("Get test data")
 
-    x_test, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
-                                                                                     start_position,
-                                                                                     data_window_size,
-                                                                                     window_size,
-                                                                                     data_size,
-                                                                                     window_stride_size,
-                                                                                     cut_list)
+    x_test, x_test_noisy, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
+                                                                                                   start_position,
+                                                                                                   data_window_size,
+                                                                                                   window_size,
+                                                                                                   data_size,
+                                                                                                   window_stride_size,
+                                                                                                   cut_list)
     y_test = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
 
     if input_model is None:
@@ -441,18 +465,16 @@ def evaluate_model(input_model,
     else:
         output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
 
-    #if mid_tap_bool:
-        #if high_tap_bool:
-            #output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}".format(
-                #output[0], output[1], output[2], output[3], output[4], output[5], output[6])
-        #else:
-            #output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}".format(
-                #output[0], output[1], output[2], output[3], output[4])
-    #else:
-        #output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}".format(output[0], output[1],
-                                                                                                  #output[2])
-
-    output_string = "Test loss: {0}".format(output)
+    if mid_tap_bool:
+        if high_tap_bool:
+            output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}".format(
+                output[0], output[1], output[2], output[3], output[4], output[5], output[6])
+        else:
+            output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}".format(
+                output[0], output[1], output[2], output[3], output[4])
+    else:
+        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}".format(output[0], output[1],
+                                                                                                  output[2])
 
     print(output_string)
 
@@ -720,7 +742,7 @@ def concat_array_list(data):
     for i in range(len(data)):
         temp_list = []
 
-        new_data = np.load(data[i])
+        new_data = np.load(data[i], mmap_mode='c')
 
         for j in range(len(data_list)):
             temp_list.append(data_list[j])
@@ -737,27 +759,91 @@ def concat_array_list(data):
     return np.asfarray(data_list), cut_list
 
 
-def concat_one_input(x, y):
-    x_output = "x_one_input.npy"
-    y_output = "y_one_input.npy"
-
+def concat_one_input(x, y, x_output, y_output, cut_list_output):
     x_data, cut_list = concat_array_list(x)
-    y_data, cut_list_y = concat_array_list(y)
-
     np.save(x_output, x_data.astype(np.float32))
+
+    y_data, cut_list_y = concat_array_list(y)
     np.save(y_output, y_data.astype(np.float32))
+
+    np.save(cut_list_output, np.asarray(cut_list).astype(np.int))
 
     return [x_output], [y_output], cut_list
 
 
+def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_list_output, split, window_size):
+    x_data = np.load(x[0], mmap_mode='c')
+    y_data = np.load(y[0], mmap_mode='c')
+
+    test_data_index = []
+    cut_list = []
+
+    data_size = len(y_data)
+    target_data_size = data_size * split
+
+    current_data_size = len(test_data_index)
+
+    seed(int(time.time()))
+
+    while current_data_size < target_data_size:
+        stochastic_i = randint(0, (data_size - window_size) - 1)
+        stochastic_i_range = range(stochastic_i, stochastic_i + window_size)
+
+        found = False
+
+        for i in range(len(stochastic_i_range)):
+            for j in range(len(test_data_index)):
+                if stochastic_i_range[i] == test_data_index[j]:
+                    found = True
+
+                    break
+
+            if found:
+                break
+
+        if found:
+            continue
+
+        for i in range(len(stochastic_i_range)):
+            test_data_index.append(stochastic_i_range[i])
+
+        current_data_size = len(test_data_index)
+
+    test_x_data = x_data.take(test_data_index, axis=0)
+    test_y_data = y_data.take(test_data_index, axis=0)
+
+    data_index = [x for x in range(data_size) if x not in test_data_index]
+
+    x_data = x_data.take(data_index, axis=0)
+    y_data = y_data.take(data_index, axis=0)
+
+    np.save(test_x_output, test_x_data.astype(np.float32))
+    np.save(test_y_output, test_y_data.astype(np.float32))
+    np.save(x_output, x_data.astype(np.float32))
+    np.save(y_output, y_data.astype(np.float32))
+
+    partial_data_list = [data_index[0]]
+    previous_value = data_index[0]
+
+    for i in range(1, len(data_index)):
+        partial_data_list.append(data_index[i])
+
+        if previous_value - data_index[i] > 1:
+            cut_list.append(len(partial_data_list))
+
+    np.save(cut_list_output, np.asarray(cut_list).astype(np.int))
+
+    return [x_output], [y_output], [test_x_output], [test_y_output], cut_list
+
+
 def main(fit_model_bool, while_bool, load_bool):
     save_bool = True
-    plot_bool = True
+    plot_bool = False
     apply_bool = False
     passthrough_bool = False
     single_input_bool = True
     concat_one_input_bool = True
-    reload_data = False
+    reload_data = True
     tof_bool = False
     stochastic_bool = True
     flip_bool = False
@@ -765,7 +851,9 @@ def main(fit_model_bool, while_bool, load_bool):
     output_all_bool = False
     number_of_bins = 1000000
 
-    cv_bool = False
+    cv_bool = True
+    cv_simple_bool = False
+    cv_simple_test_bool = True
     cv_pos = 0
 
     output_to_output = 0
@@ -773,6 +861,8 @@ def main(fit_model_bool, while_bool, load_bool):
     output_path = "./results/"
     output_prefix = ".csv"
     cv_tracker_path = None
+
+    cut_list = []
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -855,6 +945,9 @@ def main(fit_model_bool, while_bool, load_bool):
 
         print("Got data")
 
+    window_size = 40
+    window_stride_size = math.floor(window_size / 2.0)
+
     if cv_bool:
         output_path = "./cv_{0}_results/".format(str(cv_pos))
 
@@ -866,80 +959,132 @@ def main(fit_model_bool, while_bool, load_bool):
         if not os.path.isfile(cv_tracker_path):
             os.mknod(cv_tracker_path)
 
-        temp_x_path_orig_list = x_path_orig_list
-        temp_y_path_orig_list = y_path_orig_list
+        if cv_simple_bool:
+            temp_x_path_orig_list = x_path_orig_list
+            temp_y_path_orig_list = y_path_orig_list
 
-        temp_x_path_list = x_path_list
-        temp_y_path_list = y_path_list
+            temp_x_path_list = x_path_list
+            temp_y_path_list = y_path_list
 
-        temp_output_file_name = output_file_name
+            temp_output_file_name = output_file_name
 
-        x_path_orig_list = []
-        y_path_orig_list = []
+            x_path_orig_list = []
+            y_path_orig_list = []
 
-        x_path_list = []
-        y_path_list = []
+            x_path_list = []
+            y_path_list = []
 
-        output_file_name = []
+            output_file_name = []
 
-        test_x_path_orig_list = []
-        test_y_path_orig_list = []
+            test_x_path_orig_list = []
+            test_y_path_orig_list = []
 
-        test_x_path_list = []
-        test_y_path_list = []
+            test_x_path_list = []
+            test_y_path_list = []
 
-        test_output_file_name = []
+            test_output_file_name = []
 
-        for i in range(len(temp_x_path_orig_list)):
-            if i == cv_pos:
-                test_x_path_orig_list.append(temp_x_path_orig_list[i])
-                test_y_path_orig_list.append(temp_y_path_orig_list[i])
+            for i in range(len(temp_x_path_orig_list)):
+                if i == cv_pos:
+                    test_x_path_orig_list.append(temp_x_path_orig_list[i])
+                    test_y_path_orig_list.append(temp_y_path_orig_list[i])
 
-                test_x_path_list.append(temp_x_path_list[i])
-                test_y_path_list.append(temp_y_path_list[i])
+                    test_x_path_list.append(temp_x_path_list[i])
+                    test_y_path_list.append(temp_y_path_list[i])
 
-                test_output_file_name.append(temp_output_file_name[i])
+                    test_output_file_name.append(temp_output_file_name[i])
+                else:
+                    x_path_orig_list.append(temp_x_path_orig_list[i])
+                    y_path_orig_list.append(temp_y_path_orig_list[i])
+
+                    x_path_list.append(temp_x_path_list[i])
+                    y_path_list.append(temp_y_path_list[i])
+
+                    output_file_name.append(temp_output_file_name[i])
+
+            if len(x_path_orig_list) < 1:
+                x_path_orig_list = test_x_path_orig_list
+                y_path_orig_list = test_y_path_orig_list
+
+                x_path_list = test_x_path_list
+                y_path_list = test_y_path_list
+
+                output_file_name = test_output_file_name
+
+            if len(test_x_path_orig_list) < 1:
+                test_x_path_orig_list = x_path_orig_list
+                test_path_orig_list = y_path_orig_list
+
+                test_x_path_list = x_path_list
+                test_y_path_list = y_path_list
+
+                test_output_file_name = output_file_name
+        else:
+            temp_test_x_path_list = test_x_path_list
+            temp_test_y_path_list = test_y_path_list
+
+            x_output = "x_one_input.npy"
+            y_output = "y_one_input.npy"
+            cut_list_output = "cut_list_input.npy"
+
+            if reload_data:
+                x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list, x_output, y_output,
+                                                                      cut_list_output)
             else:
-                x_path_orig_list.append(temp_x_path_orig_list[i])
-                y_path_orig_list.append(temp_y_path_orig_list[i])
+                cut_list = np.load(cut_list_output, mmap_mode='c')
 
-                x_path_list.append(temp_x_path_list[i])
-                y_path_list.append(temp_y_path_list[i])
+            x_path_list = [x_output]
+            y_path_list = [y_output]
 
-                output_file_name.append(temp_output_file_name[i])
+            x_output = "split_x_one_input.npy"
+            y_output = "split_y_one_input.npy"
+            test_x_output = "split_test_x_one_input.npy"
+            test_y_output = "split_test_y_one_input.npy"
+            cut_list_output = "split_cut_list_input.npy"
 
-        if len(x_path_orig_list) < 1:
-            x_path_orig_list = test_x_path_orig_list
-            y_path_orig_list = test_y_path_orig_list
+            if reload_data:
+                x_path_list, y_path_list, test_x_path_list, test_y_path_list, cut_list = split_one_input(x_path_list,
+                                                                                                         y_path_list,
+                                                                                                         x_output,
+                                                                                                         y_output,
+                                                                                                         test_x_output,
+                                                                                                         test_y_output,
+                                                                                                         cut_list_output,
+                                                                                                         0.5,
+                                                                                                         window_size)
+            else:
+                cut_list = np.load(cut_list_output, mmap_mode='c')
 
-            x_path_list = test_x_path_list
-            y_path_list = test_y_path_list
+            x_path_list = [x_output]
+            y_path_list = [y_output]
+            test_x_path_list = [test_x_output]
+            test_y_path_list = [test_y_output]
 
-            output_file_name = test_output_file_name
-
-        if len(test_x_path_orig_list) < 1:
-            test_x_path_orig_list = x_path_orig_list
-            test_path_orig_list = y_path_orig_list
-
-            test_x_path_list = x_path_list
-            test_y_path_list = y_path_list
-
-            test_output_file_name = output_file_name
-
-    window_size = 40
-    window_stride_size = math.floor(window_size / 2.0)
+            if cv_simple_test_bool:
+                test_x_path_list = temp_test_x_path_list
+                test_y_path_list = temp_test_y_path_list
 
     if fit_model_bool:
         window_stride_size = 1
         epochs = 1
 
-        cut_list = []
-
         mid_tap_bool = False
         high_tap_bool = False
 
-        if concat_one_input_bool:
-            x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list)
+        if cv_simple_bool:
+            if concat_one_input_bool:
+                x_output = "x_one_input.npy"
+                y_output = "y_one_input.npy"
+                cut_list_output = "cut_list_input.npy"
+
+                if reload_data:
+                    x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list, x_output, y_output,
+                                                                          cut_list_output)
+                else:
+                    cut_list = np.load(cut_list_output, mmap_mode='c')
+
+                x_path_list = [x_output]
+                y_path_list = [y_output]
 
         if load_bool:
             with open(output_path + "/path_start_point", "r") as file:
@@ -977,17 +1122,17 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 print("Path: " + str(i) + "/" + str(path_length))
 
-                data_size = np.load(y_path_list[i]).shape[0]
+                data_size = np.load(y_path_list[i], mmap_mode='c').shape[0]
 
                 test_data_size = None
 
                 if cv_bool:
-                    test_data_size = np.load(test_y_path_list[i]).shape[0]
+                    test_data_size = np.load(test_y_path_list[i], mmap_mode='c').shape[0]
 
                 if tof_bool:
                     ideal_data_window_size = window_size
                 else:
-                    ideal_data_window_size = (data_size / len(x_path_orig_list)) / 10
+                    ideal_data_window_size = window_size * 5
 
                 if ideal_data_window_size >= data_size:
                     ideal_data_window_size = data_size - 1
@@ -1008,7 +1153,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
                     print("Data: " + str(j) + "/" + str(data_size))
 
-                    if not concat_one_input_bool:
+                    if not cv_bool and not concat_one_input_bool:
                         cut_list = [data_size]
 
                     out_of_bounds_bool = False
@@ -1084,13 +1229,13 @@ def main(fit_model_bool, while_bool, load_bool):
         for i in range(path_length):
             print("Path: " + str(i) + "/" + str(path_length))
 
-            data_array = np.load(y_path_list[i])
+            data_array = np.load(test_y_path_list[i], mmap_mode='c')
             data_size = data_array.shape[0]
 
             if tof_bool:
                 ideal_data_window_size = window_size
             else:
-                ideal_data_window_size = (data_size / len(x_path_orig_list)) / 10
+                ideal_data_window_size = window_size * 5
 
             if ideal_data_window_size >= data_size:
                 ideal_data_window_size = data_size - 1
@@ -1182,4 +1327,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, False)
+    main(True, True, True)

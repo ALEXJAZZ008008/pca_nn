@@ -1,3 +1,8 @@
+# Copyright University College London 2019, 2020
+# Author: Alexander Whitehead, Institute of Nuclear Medicine, UCL
+# For internal research only.
+
+
 import keras as k
 
 

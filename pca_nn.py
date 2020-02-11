@@ -1,3 +1,8 @@
+# Copyright University College London 2019, 2020
+# Author: Alexander Whitehead, Institute of Nuclear Medicine, UCL
+# For internal research only.
+
+
 from __future__ import division, print_function
 import os
 import time
@@ -10,6 +15,7 @@ import scipy.stats
 from sklearn.preprocessing import RobustScaler
 import keras as k
 
+import optimise
 import test_2
 
 
@@ -275,18 +281,25 @@ def fit_model(input_model,
             auto_encoder_weight = 0.1
 
             if regularisation:
+                optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
+                print("Output: {0}".format(optimised_rnn_units))
+
+                optimised_rnn_mid_tap_units = optimise.optimise_value(int(rnn_mid_tap_units), float(dropout))
+                print("Output: {0}".format(optimised_rnn_mid_tap_units))
+
+                optimised_rnn_high_tap_units = optimise.optimise_value(int(rnn_high_tap_units), float(dropout))
+                print("Output: {0}".format(optimised_rnn_high_tap_units))
+
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
                     x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
-                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True,
-                    int(math.ceil(rnn_units + (rnn_units * dropout))),
-                    int(math.ceil(rnn_mid_tap_units + (rnn_mid_tap_units * dropout))),
-                    int(math.ceil(rnn_high_tap_units + (rnn_high_tap_units * dropout))),
-                    "sigmoid", "glorot_normal", "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone,
-                    rnn_ltwo, dropout, regularisation, False, False, False, False, False, False, False, False)
+                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, int(optimised_rnn_units),
+                    int(optimised_rnn_mid_tap_units), int(optimised_rnn_high_tap_units), "sigmoid", "glorot_normal",
+                    "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, dropout,
+                    regularisation, False, False, False, False, False, False, False, False)
             else:
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                    x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, 8, "lecun_normal", 7, True, 8, 1, 1, 1, "lstm",
-                    True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
+                    x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, base_units, "lecun_normal", 7, True, base_units,
+                    1, 1, 1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
                     "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation,
                     False, False, False, False, False, False, False, False)
 

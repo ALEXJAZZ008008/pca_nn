@@ -261,25 +261,28 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            base_units = 16
-            regularisation_epsilon = 0.0001
+            base_units = 8
+            regularisation_epsilon = 0.0
 
-            regularisation = False
-            rnn_units = base_units * 10
-            rnn_mid_tap_units = base_units * 10
-            rnn_high_tap_units = base_units * 10
+            regularisation = True
+            rnn_units = base_units * 10.0
+            rnn_mid_tap_units = 1
+            rnn_high_tap_units = 1
             batch_normalisation_bool = True
             rnn_lone = regularisation_epsilon
             rnn_ltwo = regularisation_epsilon
+            dropout = 0.1
+            auto_encoder_weight = 0.1
 
             if regularisation:
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
                     x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
-                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, rnn_units * 2, rnn_mid_tap_units * 2,
-                                                                                rnn_high_tap_units * 2, "sigmoid",
-                    "glorot_normal", "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.5,
-                    regularisation, False, False, False,
-                    False, False, False, False, False)
+                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True,
+                    int(math.ceil(rnn_units + (rnn_units * dropout))),
+                    int(math.ceil(rnn_mid_tap_units + (rnn_mid_tap_units * dropout))),
+                    int(math.ceil(rnn_high_tap_units + (rnn_high_tap_units * dropout))),
+                    "sigmoid", "glorot_normal", "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone,
+                    rnn_ltwo, dropout, regularisation, False, False, False, False, False, False, False, False)
             else:
                 x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
                     x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, 8, "lecun_normal", 7, True, 8, 1, 1, 1, "lstm",
@@ -317,17 +320,17 @@ def fit_model(input_model,
                 if high_tap_bool:
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.3, regularisation_epsilon, 0.3,
-                                                                        regularisation_epsilon, 0.3,
-                                                                        regularisation_epsilon])
+                        loss=k.losses.mean_squared_error, loss_weights=[0.3, auto_encoder_weight, 0.3,
+                                                                        auto_encoder_weight, 0.3,
+                                                                        auto_encoder_weight])
                 else:
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.5, regularisation_epsilon, 0.5,
-                                                                        regularisation_epsilon])
+                        loss=k.losses.mean_squared_error, loss_weights=[0.5, auto_encoder_weight, 0.5,
+                                                                        auto_encoder_weight])
             else:
                 model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                              loss=k.losses.mean_squared_error, loss_weights=[1.0, regularisation_epsilon])
+                              loss=k.losses.mean_squared_error, loss_weights=[1.0, auto_encoder_weight])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -1068,7 +1071,7 @@ def main(fit_model_bool, while_bool, load_bool):
         window_stride_size = 1
         epochs = 1
 
-        mid_tap_bool = False
+        mid_tap_bool = True
         high_tap_bool = False
 
         if cv_simple_bool:
@@ -1327,4 +1330,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(True, True, False)

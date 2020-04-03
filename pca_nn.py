@@ -267,12 +267,12 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            base_units = 8
-            regularisation_epsilon = 0.0
+            base_units = 16
+            regularisation_epsilon = 0.00000009
 
             regularisation = True
             rnn_units = base_units * 10.0
-            rnn_mid_tap_units = 1
+            rnn_mid_tap_units = base_units
             rnn_high_tap_units = 1
             batch_normalisation_bool = True
             rnn_lone = regularisation_epsilon
@@ -331,19 +331,29 @@ def fit_model(input_model,
 
             if mid_tap_bool:
                 if high_tap_bool:
+                    new_auto_encoder_weight = auto_encoder_weight / 3.0
+
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.3, auto_encoder_weight, 0.3,
-                                                                        auto_encoder_weight, 0.3,
-                                                                        auto_encoder_weight])
+                        loss=k.losses.mean_squared_error, loss_weights=[0.3 - new_auto_encoder_weight,
+                                                                        new_auto_encoder_weight,
+                                                                        0.3 - new_auto_encoder_weight,
+                                                                        new_auto_encoder_weight,
+                                                                        0.3 - new_auto_encoder_weight,
+                                                                        new_auto_encoder_weight])
                 else:
+                    new_auto_encoder_weight = auto_encoder_weight / 2.0
+
                     model.compile(
                         optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.5, auto_encoder_weight, 0.5,
-                                                                        auto_encoder_weight])
+                        loss=k.losses.mean_squared_error, loss_weights=[0.5 - new_auto_encoder_weight,
+                                                                        new_auto_encoder_weight,
+                                                                        0.5 - new_auto_encoder_weight,
+                                                                        new_auto_encoder_weight])
             else:
                 model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                              loss=k.losses.mean_squared_error, loss_weights=[1.0, auto_encoder_weight])
+                              loss=k.losses.mean_squared_error, loss_weights=[1.0 - auto_encoder_weight,
+                                                                              auto_encoder_weight])
 
             with open(output_path + "/lr", "w") as file:
                 file.write(str(lr))
@@ -1084,7 +1094,7 @@ def main(fit_model_bool, while_bool, load_bool):
         window_stride_size = 1
         epochs = 1
 
-        mid_tap_bool = True
+        mid_tap_bool = False
         high_tap_bool = False
 
         if cv_simple_bool:
@@ -1343,4 +1353,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, False)
+    main(True, True, True)

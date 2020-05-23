@@ -13,6 +13,16 @@ import numpy as np
 import scipy.io
 import scipy.stats
 from sklearn.preprocessing import RobustScaler
+import tensorflow as tf
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+
+if gpus:
+  try:
+    tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=6144)])
+  except RuntimeError as e:
+    print(e)
+
 import keras as k
 
 import optimise
@@ -267,18 +277,19 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
-            base_units = 16
-            regularisation_epsilon = 0.00000009
+            base_units = 8
+            rnn_multiplier = 1.0
+            regularisation_epsilon = 0.0
 
             regularisation = True
-            rnn_units = base_units * 10.0
+            rnn_units = window_size * rnn_multiplier
             rnn_mid_tap_units = base_units
             rnn_high_tap_units = 1
             batch_normalisation_bool = True
             rnn_lone = regularisation_epsilon
             rnn_ltwo = regularisation_epsilon
-            dropout = 0.1
-            auto_encoder_weight = 0.1
+            dropout = 0.5
+            auto_encoder_weight = 0.5
 
             if regularisation:
                 optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
@@ -864,17 +875,19 @@ def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_
 
 def main(fit_model_bool, while_bool, load_bool):
     save_bool = True
-    plot_bool = False
+    plot_bool = True
     apply_bool = False
     passthrough_bool = False
     single_input_bool = True
+    dynamic_bool = True
+    static_bool = True
     concat_one_input_bool = True
     reload_data = True
     tof_bool = False
     stochastic_bool = True
-    flip_bool = False
+    flip_bool = True
 
-    output_all_bool = False
+    output_all_bool = True
     number_of_bins = 1000000
 
     cv_bool = True
@@ -894,66 +907,136 @@ def main(fit_model_bool, while_bool, load_bool):
         os.makedirs(output_path)
 
     if single_input_bool:
-        x_path_orig_list = ["./normalised_sinos_1.mat"]
-        y_path_orig_list = ["./output_signal_1.mat"]
+        if static_bool:
+            x_path_orig_list = [
+                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/sinos_1.mat"]
+            y_path_orig_list = [
+                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/output_signal_1.mat"]
 
-        x_path_list = ["normalised_sinos_preprocessed_1.npy"]
-        y_path_list = ["output_signal_preprocessed_1.npy"]
+            x_path_list = ["normalised_sinos_preprocessed_static_1.npy"]
+            y_path_list = ["output_signal_preprocessed_static_1.npy"]
 
-        output_file_name = ["estimated_signal_1"]
+            output_file_name = ["estimated_signal_static_1"]
+        else:
+            x_path_orig_list = [
+                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/sinos_1.mat"]
+            y_path_orig_list = [
+                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/output_signal_1.mat"]
+
+            x_path_list = ["normalised_sinos_preprocessed_dynamic_1.npy"]
+            y_path_list = ["output_signal_preprocessed_dynamic_1.npy"]
+
+            output_file_name = ["estimated_signal_dynamic_1"]
     else:
-        x_path_orig_list = ["./normalised_sinos_1.mat",
-                            "./normalised_sinos_3.mat",
-                            "./normalised_sinos_5.mat",
-                            "./normalised_sinos_6.mat",
-                            "./normalised_sinos_7.mat",
-                            "./normalised_sinos_8.mat",
-                            "./normalised_sinos_9.mat",
-                            "./normalised_sinos_15.mat",
-                            "./normalised_sinos_19.mat",
-                            "./normalised_sinos_20.mat"]
-        y_path_orig_list = ["./output_signal_1.mat",
-                            "./output_signal_3.mat",
-                            "./output_signal_5.mat",
-                            "./output_signal_6.mat",
-                            "./output_signal_7.mat",
-                            "./output_signal_8.mat",
-                            "./output_signal_9.mat",
-                            "./output_signal_15.mat",
-                            "./output_signal_19.mat",
-                            "./output_signal_20.mat"]
+        x_path_orig_list = []
+        y_path_orig_list = []
 
-        x_path_list = ["normalised_sinos_preprocessed_1.npy",
-                       "normalised_sinos_preprocessed_3.npy",
-                       "normalised_sinos_preprocessed_5.npy",
-                       "normalised_sinos_preprocessed_6.npy",
-                       "normalised_sinos_preprocessed_7.npy",
-                       "normalised_sinos_preprocessed_8.npy",
-                       "normalised_sinos_preprocessed_9.npy",
-                       "normalised_sinos_preprocessed_15.npy",
-                       "normalised_sinos_preprocessed_19.npy",
-                       "normalised_sinos_preprocessed_20.npy"]
-        y_path_list = ["output_signal_preprocessed_1.npy",
-                       "output_signal_preprocessed_3.npy",
-                       "output_signal_preprocessed_5.npy",
-                       "output_signal_preprocessed_6.npy",
-                       "output_signal_preprocessed_7.npy",
-                       "output_signal_preprocessed_8.npy",
-                       "output_signal_preprocessed_9.npy",
-                       "output_signal_preprocessed_15.npy",
-                       "output_signal_preprocessed_19.npy",
-                       "output_signal_preprocessed_20.npy"]
+        x_path_list = []
+        y_path_list = []
 
-        output_file_name = ["estimated_signal_1",
-                            "estimated_signal_3",
-                            "estimated_signal_5",
-                            "estimated_signal_6",
-                            "estimated_signal_7",
-                            "estimated_signal_8",
-                            "estimated_signal_9",
-                            "estimated_signal_15",
-                            "estimated_signal_19",
-                            "estimated_signal_20"]
+        output_file_name = []
+
+        if dynamic_bool:
+            x_path_orig_list.extend(
+                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/sinos_1.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/Baseline/sinos_3.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG005/Baseline/sinos_5.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG006/Baseline/sinos_6.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/Baseline/sinos_7.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/Baseline/sinos_8.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG009/Baseline/sinos_9.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/PostTreatment/sinos_15.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/PostTreatment/sinos_19.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/PostTreatment/sinos_20.mat"])
+            y_path_orig_list.extend(
+                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/output_signal_1.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/Baseline/output_signal_3.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG005/Baseline/output_signal_5.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG006/Baseline/output_signal_6.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/Baseline/output_signal_7.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/Baseline/output_signal_8.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG009/Baseline/output_signal_9.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/PostTreatment/output_signal_15.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/PostTreatment/output_signal_19.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/PostTreatment/output_signal_20.mat"])
+
+            x_path_list.extend(["normalised_sinos_preprocessed_dynamic_1.npy",
+                                "normalised_sinos_preprocessed_dynamic_3.npy",
+                                "normalised_sinos_preprocessed_dynamic_5.npy",
+                                "normalised_sinos_preprocessed_dynamic_6.npy",
+                                "normalised_sinos_preprocessed_dynamic_7.npy",
+                                "normalised_sinos_preprocessed_dynamic_8.npy",
+                                "normalised_sinos_preprocessed_dynamic_9.npy",
+                                "normalised_sinos_preprocessed_dynamic_15.npy",
+                                "normalised_sinos_preprocessed_dynamic_19.npy",
+                                "normalised_sinos_preprocessed_dynamic_20.npy"])
+            y_path_list.extend(["output_signal_preprocessed_dynamic_1.npy",
+                                "output_signal_preprocessed_dynamic_3.npy",
+                                "output_signal_preprocessed_dynamic_5.npy",
+                                "output_signal_preprocessed_dynamic_6.npy",
+                                "output_signal_preprocessed_dynamic_7.npy",
+                                "output_signal_preprocessed_dynamic_8.npy",
+                                "output_signal_preprocessed_dynamic_9.npy",
+                                "output_signal_preprocessed_dynamic_15.npy",
+                                "output_signal_preprocessed_dynamic_19.npy",
+                                "output_signal_preprocessed_dynamic_20.npy"])
+
+            output_file_name.extend(["estimated_signal_dynamic_1",
+                                     "estimated_signal_dynamic_3",
+                                     "estimated_signal_dynamic_5",
+                                     "estimated_signal_dynamic_6",
+                                     "estimated_signal_dynamic_7",
+                                     "estimated_signal_dynamic_8",
+                                     "estimated_signal_dynamic_9",
+                                     "estimated_signal_dynamic_15",
+                                     "estimated_signal_dynamic_19",
+                                     "estimated_signal_dynamic_20"])
+
+        if static_bool:
+            x_path_orig_list.extend(
+                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/sinos_1.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG006/Baseline/sinos_6.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/Baseline/sinos_7.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/Baseline/sinos_8.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/PostTreatment/sinos_12.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG004/PostTreatment/sinos_15.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/PostTreatment/sinos_18.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/PostTreatment/sinos_19.mat"])
+            y_path_orig_list.extend(
+                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/output_signal_1.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG006/Baseline/output_signal_6.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/Baseline/output_signal_7.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/Baseline/output_signal_8.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/PostTreatment/output_signal_12.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG004/PostTreatment/output_signal_15.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/PostTreatment/output_signal_18.mat",
+                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/PostTreatment/output_signal_19.mat"])
+
+            x_path_list.extend(["normalised_sinos_preprocessed_static_1.npy",
+                                "normalised_sinos_preprocessed_static_6.npy",
+                                "normalised_sinos_preprocessed_static_7.npy",
+                                "normalised_sinos_preprocessed_static_8.npy",
+                                "normalised_sinos_preprocessed_static_12.npy",
+                                "normalised_sinos_preprocessed_static_15.npy",
+                                "normalised_sinos_preprocessed_static_18.npy",
+                                "normalised_sinos_preprocessed_static_19.npy"])
+            y_path_list.extend(["output_signal_preprocessed_static_1.npy",
+                                "output_signal_preprocessed_static_6.npy",
+                                "output_signal_preprocessed_static_7.npy",
+                                "output_signal_preprocessed_static_8.npy",
+                                "output_signal_preprocessed_static_12.npy",
+                                "output_signal_preprocessed_static_15.npy",
+                                "output_signal_preprocessed_static_18.npy",
+                                "output_signal_preprocessed_static_19.npy"])
+
+            output_file_name.extend(["estimated_signal_static_1",
+                                     "estimated_signal_static_6",
+                                     "estimated_signal_static_7",
+                                     "estimated_signal_static_8",
+                                     "estimated_signal_static_12",
+                                     "estimated_signal_static_15",
+                                     "estimated_signal_static_18",
+                                     "estimated_signal_static_19"])
 
     test_x_path_orig_list = x_path_orig_list
     test_y_path_orig_list = y_path_orig_list
@@ -1158,7 +1241,8 @@ def main(fit_model_bool, while_bool, load_bool):
                 if tof_bool:
                     ideal_data_window_size = window_size
                 else:
-                    ideal_data_window_size = window_size * 5
+                    ideal_data_window_size_multiplier = 6
+                    ideal_data_window_size = window_size * ideal_data_window_size_multiplier
 
                 if ideal_data_window_size >= data_size:
                     ideal_data_window_size = data_size - 1
@@ -1261,7 +1345,8 @@ def main(fit_model_bool, while_bool, load_bool):
             if tof_bool:
                 ideal_data_window_size = window_size
             else:
-                ideal_data_window_size = window_size * 5
+                ideal_data_window_size_multiplier = 6
+                ideal_data_window_size = window_size * ideal_data_window_size_multiplier
 
             if ideal_data_window_size >= data_size:
                 ideal_data_window_size = data_size - 1
@@ -1353,4 +1438,4 @@ def main(fit_model_bool, while_bool, load_bool):
 
 
 if __name__ == "__main__":
-    main(True, True, True)
+    main(True, True, False)

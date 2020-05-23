@@ -558,6 +558,7 @@ def test_down(x, x_skip, layers, filters, initializer, batch_normalisation_bool,
         x = test_module_down(x, ascending_filters, initializer, batch_normalisation_bool, activation, regularisation,
                              lone, ltwo, dropout, feature_downsample_bool, concat_bool, str(i), deep_bool, skip_bool,
                              skip_filters_bool)
+
         if ascending_bool:
             if skip_bool and skip_filters_bool:
                 x = test_crop(x, x_res_skip)

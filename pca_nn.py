@@ -18,15 +18,16 @@ import tensorflow as tf
 gpus = tf.config.experimental.list_physical_devices('GPU')
 
 if gpus:
-  try:
-    tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=6144)])
-  except RuntimeError as e:
-    print(e)
+    try:
+        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
+            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=6144)])
+    except RuntimeError as e:
+        print(e)
 
 import keras as k
 
 import optimise
-import test_2
+import test_3
 
 
 def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size,
@@ -222,6 +223,7 @@ def fit_model(input_model,
               output_path,
               tof_bool,
               stochastic_bool,
+              noisy_bool,
               passthrough_bool,
               epochs,
               output_all_bool,
@@ -257,6 +259,9 @@ def fit_model(input_model,
                         window_stride_size,
                         out_of_bounds_bool)
 
+    if noisy_bool:
+        x_train_noisy = None
+
     if x_train_noisy is None:
         x_train_noisy = x_train
 
@@ -277,161 +282,195 @@ def fit_model(input_model,
             x = input_x
             x_skip = []
 
+            # network settings
+            network_to_data_normalisation_multiplier = 1.0
+
             base_units = 8
-            rnn_multiplier = 1.0
+            base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
+            cnn_start_units = base_units
+
+            cnn_layers = 4
+            cnn_increase_layer_density_bool = True
+            cnn_layer_layers = 1
+            cnn_pool_bool = False
+            cnn_max_pool_bool = True
+            cnn_deconvolution_bool = True
+
+            rnn_multiplier = 1
+            rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
+
+            rnn_units = int(math.floor(window_size * rnn_multiplier))
+            # rnn_mid_tap_units = base_units
+            # rnn_high_tap_units = 1
+
+            rnn_layers = 1
+
+            # regularisation = True
+            # batch_normalisation_bool = True
             regularisation_epsilon = 0.0
 
-            regularisation = True
-            rnn_units = window_size * rnn_multiplier
-            rnn_mid_tap_units = base_units
-            rnn_high_tap_units = 1
-            batch_normalisation_bool = True
             rnn_lone = regularisation_epsilon
             rnn_ltwo = regularisation_epsilon
-            dropout = 0.5
-            auto_encoder_weight = 0.5
+            lone = rnn_lone
+            ltwo = rnn_ltwo
 
-            if regularisation:
-                optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
-                print("Output: {0}".format(optimised_rnn_units))
+            dropout = 0.0
 
-                optimised_rnn_mid_tap_units = optimise.optimise_value(int(rnn_mid_tap_units), float(dropout))
-                print("Output: {0}".format(optimised_rnn_mid_tap_units))
+            auto_encoder_weight = 1.0
 
-                optimised_rnn_high_tap_units = optimise.optimise_value(int(rnn_high_tap_units), float(dropout))
-                print("Output: {0}".format(optimised_rnn_high_tap_units))
+            # end network settings
 
-                x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                    x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
-                    "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, int(optimised_rnn_units),
-                    int(optimised_rnn_mid_tap_units), int(optimised_rnn_high_tap_units), "sigmoid", "glorot_normal",
-                    "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, dropout,
-                    regularisation, False, False, False, False, False, False, False, False)
-            else:
-                x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-                    x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, base_units, "lecun_normal", 7, True, base_units,
-                    1, 1, 1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
-                    "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation,
-                    False, False, False, False, False, False, False, False)
+            # if regularisation:
+            optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
+            print("Output: {0}".format(optimised_rnn_units))
 
-            x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
-                                         "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
-                                         "output_1", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
-            x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2")
+            #    optimised_rnn_mid_tap_units = optimise.optimise_value(int(rnn_mid_tap_units), float(dropout))
+            #    print("Output: {0}".format(optimised_rnn_mid_tap_units))
 
-            x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
-                                           "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
-                                           "output_3", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
-            x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4")
+            #    optimised_rnn_high_tap_units = optimise.optimise_value(int(rnn_high_tap_units), float(dropout))
+            #    print("Output: {0}".format(optimised_rnn_high_tap_units))
 
-            x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", rnn_high_tap_units, output_size, "tanh",
-                                           "glorot_normal", "glorot_uniform", False, "sigmoid", "glorot_normal",
-                                           "linear", False, "output_5", regularisation, rnn_lone, rnn_ltwo,
-                                           batch_normalisation_bool)
-            x_2_0 = test_2.output_module_2(x_2_0, "glorot_normal", "linear", "output_6")
+            #    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #        x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
+            #        "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, int(optimised_rnn_units),
+            #        int(optimised_rnn_mid_tap_units), int(optimised_rnn_high_tap_units), "sigmoid", "glorot_normal",
+            #        "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, dropout,
+            #        regularisation, False, False, False, False, False, False, False, False)
+            # else:
+            #    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
+            #        x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, base_units, "lecun_normal", 7, True, base_units,
+            #        1, 1, 1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
+            #        "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation,
+            #        False, False, False, False, False, False, False, False)
 
-            if mid_tap_bool:
-                if high_tap_bool:
-                    model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0])
-                else:
-                    model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
-            else:
-                model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+            # x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
+            #                             "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
+            #                             "output_1", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
+            # x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2")
+
+            # x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
+            #                               "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
+            #                               "output_3", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
+            # x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4")
+
+            # x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", rnn_high_tap_units, output_size, "tanh",
+            #                               "glorot_normal", "glorot_uniform", False, "sigmoid", "glorot_normal",
+            #                               "linear", False, "output_5", regularisation, rnn_lone, rnn_ltwo,
+            #                               batch_normalisation_bool)
+            # x_2_0 = test_2.output_module_2(x_2_0, "glorot_normal", "linear", "output_6")
+
+            x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
+                                                            cnn_increase_layer_density_bool, cnn_layer_layers, lone,
+                                                            ltwo, cnn_pool_bool, cnn_max_pool_bool,
+                                                            cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
+                                                            dropout, output_size)
+
+            # if mid_tap_bool:
+            #    if high_tap_bool:
+            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0])
+            #    else:
+            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
+            # else:
+            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
             lr = 0.01
 
-            if mid_tap_bool:
-                if high_tap_bool:
-                    new_auto_encoder_weight = auto_encoder_weight / 3.0
+            # if mid_tap_bool:
+            #    if high_tap_bool:
+            #        new_auto_encoder_weight = auto_encoder_weight / 3.0
 
-                    model.compile(
-                        optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.3 - new_auto_encoder_weight,
-                                                                        new_auto_encoder_weight,
-                                                                        0.3 - new_auto_encoder_weight,
-                                                                        new_auto_encoder_weight,
-                                                                        0.3 - new_auto_encoder_weight,
-                                                                        new_auto_encoder_weight])
-                else:
-                    new_auto_encoder_weight = auto_encoder_weight / 2.0
+            #        model.compile(
+            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+            #            loss=k.losses.mean_squared_error, loss_weights=[0.3 - new_auto_encoder_weight,
+            #                                                            new_auto_encoder_weight,
+            #                                                            0.3 - new_auto_encoder_weight,
+            #                                                            new_auto_encoder_weight,
+            #                                                            0.3 - new_auto_encoder_weight,
+            #                                                            new_auto_encoder_weight])
+            #    else:
+            #        new_auto_encoder_weight = auto_encoder_weight / 2.0
 
-                    model.compile(
-                        optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                        loss=k.losses.mean_squared_error, loss_weights=[0.5 - new_auto_encoder_weight,
-                                                                        new_auto_encoder_weight,
-                                                                        0.5 - new_auto_encoder_weight,
-                                                                        new_auto_encoder_weight])
-            else:
-                model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-                              loss=k.losses.mean_squared_error, loss_weights=[1.0 - auto_encoder_weight,
-                                                                              auto_encoder_weight])
+            #        model.compile(
+            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
+            #            loss=k.losses.mean_squared_error, loss_weights=[0.5 - new_auto_encoder_weight,
+            #                                                            new_auto_encoder_weight,
+            #                                                            0.5 - new_auto_encoder_weight,
+            #                                                            new_auto_encoder_weight])
+            # else:
+            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error, loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
 
-            with open(output_path + "/lr", "w") as file:
-                file.write(str(lr))
+            model.compile(optimizer=k.optimizers.Nadam(clipnorm=1.0), loss=k.losses.mean_squared_error,
+                          loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
 
-            batch_size = 1
+            # with open(output_path + "/lr", "w") as file:
+            #     file.write(str(lr))
 
-            with open(output_path + "/batch_size", "w") as file:
-                file.write(str(batch_size))
+            # batch_size = 1
+
+            # with open(output_path + "/batch_size", "w") as file:
+            #     file.write(str(batch_size))
+
+        model.summary()
+
+        if plot_bool:
+            k.utils.plot_model(model, output_path + "model.png")
     else:
         print("Using input model")
 
         model = input_model
 
-    model.summary()
-
-    if plot_bool:
-        k.utils.plot_model(model, output_path + "model.png")
-
     if not passthrough_bool:
         print("Fitting model")
 
-        with open(output_path + "/lr", "r") as file:
-            lr = float(file.read())
+        # with open(output_path + "/lr", "r") as file:
+        #     lr = float(file.read())
 
-        k.backend.set_value(model.optimizer.lr, lr)
+        # k.backend.set_value(model.optimizer.lr, lr)
 
-        print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
+        # print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
-        with open(output_path + "/batch_size", "r") as file:
-            batch_size = int(file.read())
+        # with open(output_path + "/batch_size", "r") as file:
+        #     batch_size = int(file.read())
 
-        reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=epochs - 1, verbose=1,
-                                                  cooldown=1)
-        tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
+        # reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=epochs - 1, verbose=1,
+        #                                           cooldown=1)
+        # tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
 
-        if mid_tap_bool:
-            if high_tap_bool:
-                model.fit(x_train_noisy,
-                          {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train,
-                           "output_5": y_train, "output_6": x_train}, batch_size=batch_size, epochs=epochs,
-                          callbacks=[reduce_lr], verbose=1)
-            else:
-                model.fit(x_train_noisy,
-                          {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
-                          batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
-        else:
-            model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
-                      callbacks=[reduce_lr], verbose=1)
+        # if mid_tap_bool:
+        #    if high_tap_bool:
+        #        model.fit(x_train_noisy,
+        #                  {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train,
+        #                   "output_5": y_train, "output_6": x_train}, batch_size=batch_size, epochs=epochs,
+        #                  callbacks=[reduce_lr], verbose=1)
+        #    else:
+        #        model.fit(x_train_noisy,
+        #                  {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
+        #                  batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
+        # else:
+        # model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
+        #           callbacks=[reduce_lr], verbose=1)
 
-        output_lr = float(k.backend.get_value(model.optimizer.lr))
+        model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=1, epochs=epochs,
+                  verbose=1)
 
-        if not math.isclose(output_lr, lr, rel_tol=1e-3):
-            with open(output_path + "/lr", "w") as file:
-                file.write(str(output_lr))
+        # output_lr = float(k.backend.get_value(model.optimizer.lr))
 
-            max_batch_size = int(data_window_size / 10)
+        # if not math.isclose(output_lr, lr, rel_tol=1e-3):
+        #     with open(output_path + "/lr", "w") as file:
+        #         file.write(str(output_lr))
 
-            if batch_size <= max_batch_size:
-                batch_size = batch_size + 1
+        #     max_batch_size = int(data_window_size / 10)
 
-            if batch_size > max_batch_size:
-                batch_size = max_batch_size
+        #     if batch_size <= max_batch_size:
+        #         batch_size = batch_size + 1
 
-            with open(output_path + "/batch_size", "w") as file:
-                file.write(str(int(batch_size)))
+        #     if batch_size > max_batch_size:
+        #         batch_size = max_batch_size
 
-        print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
+        #     with open(output_path + "/batch_size", "w") as file:
+        #         file.write(str(int(batch_size)))
+
+        # print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
     if save_bool:
         print("Saving model")
@@ -490,28 +529,28 @@ def evaluate_model(input_model,
 
     print("Applying model")
 
-    if mid_tap_bool:
-        if high_tap_bool:
-            output = model.evaluate(x_test,
-                                    {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test,
-                                     "output_5": y_test, "output_6": x_test}, batch_size=1, verbose=1)
-        else:
-            output = model.evaluate(x_test,
-                                    {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test},
-                                    batch_size=1, verbose=1)
-    else:
-        output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
+    # if mid_tap_bool:
+    #    if high_tap_bool:
+    #        output = model.evaluate(x_test,
+    #                                {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test,
+    #                                 "output_5": y_test, "output_6": x_test}, batch_size=1, verbose=1)
+    #    else:
+    #        output = model.evaluate(x_test,
+    #                                {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test},
+    #                                batch_size=1, verbose=1)
+    # else:
+    output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
 
-    if mid_tap_bool:
-        if high_tap_bool:
-            output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}".format(
-                output[0], output[1], output[2], output[3], output[4], output[5], output[6])
-        else:
-            output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}".format(
-                output[0], output[1], output[2], output[3], output[4])
-    else:
-        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}".format(output[0], output[1],
-                                                                                                  output[2])
+    # if mid_tap_bool:
+    #    if high_tap_bool:
+    #        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}".format(
+    #            output[0], output[1], output[2], output[3], output[4], output[5], output[6])
+    #    else:
+    #        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}".format(
+    #            output[0], output[1], output[2], output[3], output[4])
+    # else:
+    output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}".format(output[0], output[1],
+                                                                                              output[2])
 
     print(output_string)
 
@@ -885,9 +924,10 @@ def main(fit_model_bool, while_bool, load_bool):
     reload_data = True
     tof_bool = False
     stochastic_bool = True
+    noisy_bool = False
     flip_bool = True
 
-    output_all_bool = True
+    output_all_bool = False
     number_of_bins = 1000000
 
     cv_bool = True
@@ -1049,8 +1089,11 @@ def main(fit_model_bool, while_bool, load_bool):
     if reload_data:
         print("Getting data")
 
-        downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
-        standardise(y_path_orig_list, y_path_list)
+        # downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
+        # standardise(y_path_orig_list, y_path_list)
+
+        downsample_and_zscore(x_path_orig_list, tof_bool, x_path_list)
+        zscore(y_path_orig_list, y_path_list)
 
         print("Got data")
 
@@ -1175,7 +1218,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
     if fit_model_bool:
         window_stride_size = 1
-        epochs = 1
+        epochs = 1000
 
         mid_tap_bool = False
         high_tap_bool = False
@@ -1284,6 +1327,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 output_path,
                                                                                 tof_bool,
                                                                                 stochastic_bool,
+                                                                                noisy_bool,
                                                                                 passthrough_bool,
                                                                                 epochs,
                                                                                 output_all_bool,

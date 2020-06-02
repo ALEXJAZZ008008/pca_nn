@@ -10,9 +10,15 @@ import math
 from random import seed
 from random import randint
 import numpy as np
+import matplotlib
+
+matplotlib.use("TKAgg")
+
+import matplotlib.pyplot as plt
 import scipy.io
 import scipy.stats
 from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import PowerTransformer
 import tensorflow as tf
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -26,12 +32,13 @@ if gpus:
 
 import keras as k
 
+import pca_nn_paths
 import optimise
 import test_3
 
 
 def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size,
-                     cut_list):
+                     cut_list, noise_factor):
     out_of_bounds_bool = False
 
     if start_position + data_window_size + window_size >= data_size:
@@ -43,7 +50,7 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
     x = []
 
-    sinos_array = np.load(input_path, mmap_mode='c')
+    sinos_array = np.load(input_path)
 
     data_load_out_of_bounds_bool = False
 
@@ -84,23 +91,9 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
         x.append(np.asfarray(x_window))
 
-    x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(np.float32)
-    x_array_noisy = x_array
-
-    for i in range(len(x_array_noisy)):
-        x_array_noisy_minimum = np.nanmin(x_array_noisy[i])
-        x_array_noisy[i] = x_array_noisy[i] - x_array_noisy_minimum
-
-        x_array_noisy_sum = np.nansum(x_array_noisy[i])
-        total_counts_in_one_half_second = 375000.0
-        x_array_noisy_scale_factor = float(total_counts_in_one_half_second / float(x_array_noisy_sum))
-
-        x_array_noisy[i] = x_array_noisy[i] * x_array_noisy_scale_factor
-
-        x_array_noisy[i] = np.random.poisson(x_array_noisy[i])
-
-        x_array_noisy[i] = x_array_noisy[i] / x_array_noisy_scale_factor
-        x_array_noisy[i] = x_array_noisy[i] + x_array_noisy_minimum
+    x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5))
+    x_array_noisy = (x_array + (noise_factor * np.random.normal(loc=0.0, scale=1.0, size=x_array.shape))) / (
+            1.0 + noise_factor)
 
     print("Got x")
 
@@ -112,7 +105,7 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
 
     y = []
 
-    test_array = np.load(input_path, mmap_mode='c')
+    test_array = np.load(input_path)
 
     data_load_out_of_bounds_bool = False
 
@@ -135,7 +128,7 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y)).astype(np.float32)
+    return np.nan_to_num(np.asfarray(y))
 
 
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -150,7 +143,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     x = []
 
-    sinos_array = np.load(input_path, mmap_mode='c')
+    sinos_array = np.load(input_path)
 
     data_load_out_of_bounds_bool = False
 
@@ -173,7 +166,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got x")
 
-    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)).astype(np.float32), start_position, out_of_bounds_bool
+    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)), start_position, out_of_bounds_bool
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size, out_of_bounds_bool):
@@ -181,7 +174,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     y = []
 
-    test_array = np.load(input_path, mmap_mode='c')
+    test_array = np.load(input_path)
 
     data_load_out_of_bounds_bool = False
 
@@ -204,12 +197,110 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y)).astype(np.float32)
+    return np.nan_to_num(np.asfarray(y))
+
+
+def generate_model(y_train, x_train_noisy, window_size, tof_bool):
+    print("Generate new model")
+
+    input_size = int(math.ceil(np.prod(x_train_noisy.shape[1:]) / window_size))
+    output_size = y_train.shape[1:][0]
+    output_shape = x_train_noisy.shape[2:]
+
+    input_x = k.layers.Input(x_train_noisy.shape[1:])
+
+    x = input_x
+
+    # network settings
+    network_to_data_normalisation_multiplier = 1.0
+
+    # dense
+
+    stride_multiplier = 4
+    stride = math.pow(2, stride_multiplier)
+    stride = int(math.floor(stride))
+    layers = 1
+    layers_layers = 1
+
+    # cnn
+
+    base_units_multiplier = 5
+    base_units = math.pow(2, base_units_multiplier)
+    base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
+
+    cnn_bool = True
+    cnn_start_units = base_units
+    cnn_layers = 3
+    cnn_increase_layer_density_bool = False
+    cnn_layer_layers = 1
+    cnn_pool_bool = True
+    cnn_max_pool_bool = True
+    cnn_deconvolution_bool = False
+
+    rnn_multiplier = 2
+    rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
+    rnn_units = int(math.floor(window_size * rnn_multiplier))
+    rnn_layers = 1
+
+    regularisation_epsilon = 0.0
+    lone = regularisation_epsilon
+    ltwo = regularisation_epsilon
+    dropout = 0.0
+    auto_encoder_weight = 1.0
+
+    # end network settings
+
+    optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
+    print("Output: {0}".format(optimised_rnn_units))
+
+    if cnn_bool:
+        if tof_bool:
+            base_units_multiplier = 1
+            base_units = math.pow(2, base_units_multiplier)
+            base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
+
+            cnn_start_units = base_units
+            cnn_layers = 1
+            cnn_increase_layer_density_bool = True
+            cnn_layer_layers = 0
+
+            rnn_multiplier = 1
+            rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
+            rnn_units = int(math.floor(window_size * rnn_multiplier))
+            rnn_layers = 1
+
+            regularisation_epsilon = 0.0
+            lone = regularisation_epsilon
+            ltwo = regularisation_epsilon
+            dropout = 0.0
+            auto_encoder_weight = 0.0
+
+            x_1, x_2 = test_3.tof_crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
+                                                                cnn_increase_layer_density_bool, cnn_layer_layers, lone,
+                                                                ltwo, rnn_layers, rnn_units, dropout, output_size)
+        else:
+            x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
+                                                            cnn_increase_layer_density_bool, cnn_layer_layers, lone,
+                                                            ltwo, cnn_pool_bool, cnn_max_pool_bool,
+                                                            cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
+                                                            dropout, output_size)
+    else:
+        x_1, x_2 = test_3.dense_dynamic_signal_extractor(x, stride, layers, layers_layers, input_size, lone, ltwo,
+                                                         rnn_layers, rnn_units, dropout, output_size, output_shape)
+
+    model = k.Model(inputs=input_x, outputs=[x_1, x_2])
+
+    model.compile(optimizer=k.optimizers.Nadam(clipnorm=1.0),
+                  loss={"output_1": k.losses.mean_squared_error, "output_2": k.losses.mean_absolute_error},
+                  loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
+
+    return model
 
 
 def fit_model(input_model,
               save_bool,
               load_bool,
+              load_full_model_bool,
               plot_bool,
               apply_bool,
               x_input_path,
@@ -221,16 +312,15 @@ def fit_model(input_model,
               data_size,
               window_stride_size,
               output_path,
-              tof_bool,
               stochastic_bool,
               noisy_bool,
+              tof_bool,
               passthrough_bool,
               epochs,
               output_all_bool,
-              number_of_bins,
+              plot_output_bool,
               cut_list,
-              mid_tap_bool,
-              high_tap_bool):
+              noise_factor):
     print("Get training data")
 
     x_train_noisy = None
@@ -242,7 +332,8 @@ def fit_model(input_model,
                                                                                                          window_size,
                                                                                                          data_size,
                                                                                                          window_stride_size,
-                                                                                                         cut_list)
+                                                                                                         cut_list,
+                                                                                                         noise_factor)
         y_train = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
     else:
         x_train, start_position, out_of_bounds_bool = get_x(x_input_path,
@@ -269,146 +360,16 @@ def fit_model(input_model,
         print("No input model")
 
         if load_bool:
-            print("Load model from file")
+            if load_full_model_bool:
+                print("Load model from file")
 
-            model = k.models.load_model(output_path + "/model.h5")
+                model = k.models.load_model(output_path + "/model")
+            else:
+                model = generate_model(y_train, x_train_noisy, window_size, tof_bool)
+
+                model.load_weights(output_path + "/model_weights")
         else:
-            print("Generate new model")
-
-            output_size = y_train.shape[1:][0]
-
-            input_x = k.layers.Input(x_train_noisy.shape[1:])
-
-            x = input_x
-            x_skip = []
-
-            # network settings
-            network_to_data_normalisation_multiplier = 1.0
-
-            base_units = 8
-            base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
-            cnn_start_units = base_units
-
-            cnn_layers = 4
-            cnn_increase_layer_density_bool = True
-            cnn_layer_layers = 1
-            cnn_pool_bool = False
-            cnn_max_pool_bool = True
-            cnn_deconvolution_bool = True
-
-            rnn_multiplier = 1
-            rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
-
-            rnn_units = int(math.floor(window_size * rnn_multiplier))
-            # rnn_mid_tap_units = base_units
-            # rnn_high_tap_units = 1
-
-            rnn_layers = 1
-
-            # regularisation = True
-            # batch_normalisation_bool = True
-            regularisation_epsilon = 0.0
-
-            rnn_lone = regularisation_epsilon
-            rnn_ltwo = regularisation_epsilon
-            lone = rnn_lone
-            ltwo = rnn_ltwo
-
-            dropout = 0.0
-
-            auto_encoder_weight = 1.0
-
-            # end network settings
-
-            # if regularisation:
-            optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
-            print("Output: {0}".format(optimised_rnn_units))
-
-            #    optimised_rnn_mid_tap_units = optimise.optimise_value(int(rnn_mid_tap_units), float(dropout))
-            #    print("Output: {0}".format(optimised_rnn_mid_tap_units))
-
-            #    optimised_rnn_high_tap_units = optimise.optimise_value(int(rnn_high_tap_units), float(dropout))
-            #    print("Output: {0}".format(optimised_rnn_high_tap_units))
-
-            #    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #        x, x_skip, "selu", regularisation, regularisation_epsilon, regularisation_epsilon, 0.0, base_units,
-            #        "lecun_normal", 7, True, base_units, 1, 1, 1, "lstm", True, int(optimised_rnn_units),
-            #        int(optimised_rnn_mid_tap_units), int(optimised_rnn_high_tap_units), "sigmoid", "glorot_normal",
-            #        "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, dropout,
-            #        regularisation, False, False, False, False, False, False, False, False)
-            # else:
-            #    x, mid_tap, mid_tap_skip, high_tap, high_tap_skip, x_skip, x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0 = test_2.test_multi_rnn_out(
-            #        x, x_skip, "selu", regularisation, 0.0, 0.0, 0.0, base_units, "lecun_normal", 7, True, base_units,
-            #        1, 1, 1, "lstm", True, rnn_units, rnn_mid_tap_units, rnn_high_tap_units, "sigmoid", "glorot_normal",
-            #        "glorot_uniform", False, batch_normalisation_bool, "tanh", rnn_lone, rnn_ltwo, 0.0, regularisation,
-            #        False, False, False, False, False, False, False, False)
-
-            # x_1 = test_2.output_module_1(x_1, True, "lstm", rnn_units, output_size, "tanh", "glorot_normal",
-            #                             "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
-            #                             "output_1", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
-            # x_2 = test_2.output_module_2(x_2, "glorot_normal", "linear", "output_2")
-
-            # x_1_5 = test_2.output_module_1(x_1_5, True, "lstm", rnn_mid_tap_units, output_size, "tanh", "glorot_normal",
-            #                               "glorot_uniform", False, "sigmoid", "glorot_normal", "linear", False,
-            #                               "output_3", regularisation, rnn_lone, rnn_ltwo, batch_normalisation_bool)
-            # x_2_5 = test_2.output_module_2(x_2_5, "glorot_normal", "linear", "output_4")
-
-            # x_1_0 = test_2.output_module_1(x_1_0, True, "lstm", rnn_high_tap_units, output_size, "tanh",
-            #                               "glorot_normal", "glorot_uniform", False, "sigmoid", "glorot_normal",
-            #                               "linear", False, "output_5", regularisation, rnn_lone, rnn_ltwo,
-            #                               batch_normalisation_bool)
-            # x_2_0 = test_2.output_module_2(x_2_0, "glorot_normal", "linear", "output_6")
-
-            x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
-                                                            cnn_increase_layer_density_bool, cnn_layer_layers, lone,
-                                                            ltwo, cnn_pool_bool, cnn_max_pool_bool,
-                                                            cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
-                                                            dropout, output_size)
-
-            # if mid_tap_bool:
-            #    if high_tap_bool:
-            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5, x_1_0, x_2_0])
-            #    else:
-            #        model = k.Model(inputs=input_x, outputs=[x_1, x_2, x_1_5, x_2_5])
-            # else:
-            model = k.Model(inputs=input_x, outputs=[x_1, x_2])
-
-            lr = 0.01
-
-            # if mid_tap_bool:
-            #    if high_tap_bool:
-            #        new_auto_encoder_weight = auto_encoder_weight / 3.0
-
-            #        model.compile(
-            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-            #            loss=k.losses.mean_squared_error, loss_weights=[0.3 - new_auto_encoder_weight,
-            #                                                            new_auto_encoder_weight,
-            #                                                            0.3 - new_auto_encoder_weight,
-            #                                                            new_auto_encoder_weight,
-            #                                                            0.3 - new_auto_encoder_weight,
-            #                                                            new_auto_encoder_weight])
-            #    else:
-            #        new_auto_encoder_weight = auto_encoder_weight / 2.0
-
-            #        model.compile(
-            #            optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0),
-            #            loss=k.losses.mean_squared_error, loss_weights=[0.5 - new_auto_encoder_weight,
-            #                                                            new_auto_encoder_weight,
-            #                                                            0.5 - new_auto_encoder_weight,
-            #                                                            new_auto_encoder_weight])
-            # else:
-            # model.compile(optimizer=k.optimizers.SGD(learning_rate=lr, momentum=0.99, nesterov=True, clipnorm=1.0), loss=k.losses.mean_squared_error, loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
-
-            model.compile(optimizer=k.optimizers.Nadam(clipnorm=1.0), loss=k.losses.mean_squared_error,
-                          loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
-
-            # with open(output_path + "/lr", "w") as file:
-            #     file.write(str(lr))
-
-            # batch_size = 1
-
-            # with open(output_path + "/batch_size", "w") as file:
-            #     file.write(str(batch_size))
+            model = generate_model(y_train, x_train_noisy, window_size, tof_bool)
 
         model.summary()
 
@@ -422,60 +383,14 @@ def fit_model(input_model,
     if not passthrough_bool:
         print("Fitting model")
 
-        # with open(output_path + "/lr", "r") as file:
-        #     lr = float(file.read())
-
-        # k.backend.set_value(model.optimizer.lr, lr)
-
-        # print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
-
-        # with open(output_path + "/batch_size", "r") as file:
-        #     batch_size = int(file.read())
-
-        # reduce_lr = k.callbacks.ReduceLROnPlateau(monitor="loss", factor=0.9, patience=epochs - 1, verbose=1,
-        #                                           cooldown=1)
-        # tensorboard_callback = k.callbacks.TensorBoard(log_dir=output_path + "/log")
-
-        # if mid_tap_bool:
-        #    if high_tap_bool:
-        #        model.fit(x_train_noisy,
-        #                  {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train,
-        #                   "output_5": y_train, "output_6": x_train}, batch_size=batch_size, epochs=epochs,
-        #                  callbacks=[reduce_lr], verbose=1)
-        #    else:
-        #        model.fit(x_train_noisy,
-        #                  {"output_1": y_train, "output_2": x_train, "output_3": y_train, "output_4": x_train},
-        #                  batch_size=batch_size, epochs=epochs, callbacks=[reduce_lr], verbose=1)
-        # else:
-        # model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=batch_size, epochs=epochs,
-        #           callbacks=[reduce_lr], verbose=1)
-
-        model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, batch_size=1, epochs=epochs,
+        model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, epochs=epochs, batch_size=1, shuffle=True,
                   verbose=1)
-
-        # output_lr = float(k.backend.get_value(model.optimizer.lr))
-
-        # if not math.isclose(output_lr, lr, rel_tol=1e-3):
-        #     with open(output_path + "/lr", "w") as file:
-        #         file.write(str(output_lr))
-
-        #     max_batch_size = int(data_window_size / 10)
-
-        #     if batch_size <= max_batch_size:
-        #         batch_size = batch_size + 1
-
-        #     if batch_size > max_batch_size:
-        #         batch_size = max_batch_size
-
-        #     with open(output_path + "/batch_size", "w") as file:
-        #         file.write(str(int(batch_size)))
-
-        # print("lr: " + str(k.backend.get_value(model.optimizer.lr)))
 
     if save_bool:
         print("Saving model")
 
-        model.save(output_path + "/model.h5")
+        model.save(output_path + "/model")
+        model.save_weights(output_path + "/model_weights")
 
     if not passthrough_bool:
         if apply_bool:
@@ -491,7 +406,7 @@ def fit_model(input_model,
                        output_path,
                        output_path,
                        output_all_bool,
-                       number_of_bins)
+                       plot_output_bool)
 
     return model, start_position, out_of_bounds_bool
 
@@ -505,9 +420,7 @@ def evaluate_model(input_model,
                    data_size,
                    window_stride_size,
                    model_input_path,
-                   cut_list,
-                   mid_tap_bool,
-                   high_tap_bool):
+                   cut_list):
     print("Get test data")
 
     x_test, x_test_noisy, start_position, out_of_bounds_bool, stochastic_i_list = get_x_stochastic(x_input_path,
@@ -516,39 +429,21 @@ def evaluate_model(input_model,
                                                                                                    window_size,
                                                                                                    data_size,
                                                                                                    window_stride_size,
-                                                                                                   cut_list)
+                                                                                                   cut_list,
+                                                                                                   noise_factor=0.0)
     y_test = get_y_stochastic(y_input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list)
 
     if input_model is None:
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model.h5")
+        model = k.models.load_model(model_input_path + "/model")
     else:
         model = input_model
 
     print("Applying model")
 
-    # if mid_tap_bool:
-    #    if high_tap_bool:
-    #        output = model.evaluate(x_test,
-    #                                {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test,
-    #                                 "output_5": y_test, "output_6": x_test}, batch_size=1, verbose=1)
-    #    else:
-    #        output = model.evaluate(x_test,
-    #                                {"output_1": y_test, "output_2": x_test, "output_3": y_test, "output_4": x_test},
-    #                                batch_size=1, verbose=1)
-    # else:
     output = model.evaluate(x_test, {"output_1": y_test, "output_2": x_test}, batch_size=1, verbose=1)
-
-    # if mid_tap_bool:
-    #    if high_tap_bool:
-    #        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}, Test loss output_5: {3}, Test loss output_6: {4}".format(
-    #            output[0], output[1], output[2], output[3], output[4], output[5], output[6])
-    #    else:
-    #        output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}, Test loss output_3: {3}, Test loss output_4: {4}".format(
-    #            output[0], output[1], output[2], output[3], output[4])
-    # else:
     output_string = "Test loss: {0}, Test loss output_1: {1}, Test loss output_2: {2}".format(output[0], output[1],
                                                                                               output[2])
 
@@ -581,7 +476,7 @@ def test_model(input_model,
                model_input_path,
                output_path,
                output_all_bool,
-               number_of_bins):
+               plot_output_bool):
     print("Get test data")
 
     x_test, start_position, out_of_bounds_bool = get_x(x_input_path,
@@ -602,7 +497,7 @@ def test_model(input_model,
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model.h5")
+        model = k.models.load_model(model_input_path + "/model")
     else:
         model = input_model
 
@@ -610,35 +505,23 @@ def test_model(input_model,
 
     output = model.predict(x_test, batch_size=1, verbose=1)
 
+    output_volume_array = None
+
     if len(output) > 1:
-        if len(output) > 2:
-            if output_all_bool:
-                for i in range(len(output[1])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(
-                                                                                     path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
+        if output_all_bool:
+            for i in range(len(output[1])):
+                output_volume_array = normalise_and_save(output[1],
+                                                         output_path + "/test_estimated_input_" + str(1) + "_" + str(
+                                                             path) + "_" + str(start_position) + "_" + str(i))
 
-                for i in range(len(output[3])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(
-                                                                                     path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
+        output = [output[0]]
 
-            output = [output[0], output[2]]
+    if output_all_bool and plot_output_bool:
+        plt.imshow(np.squeeze(output_volume_array[0, 0, :, 0, :, 0]))
+        plt.show()
 
-        else:
-            if output_all_bool:
-                for i in range(len(output[1])):
-                    downsample_histogram_equalisation_and_standardise_input_data(output[1], number_of_bins,
-                                                                                 output_path + "/test_estimated_input_" + str(
-                                                                                     1) + "_" + str(
-                                                                                     path) + "_" + str(
-                                                                                     start_position) + "_" + str(i))
-
-            output = [output[0]]
+        plt.imshow(np.squeeze(x_test[0, 0, :, 0, :, 0]))
+        plt.show()
 
     for i in range(len(output)):
         current_output = output[i]
@@ -671,7 +554,72 @@ def test_model(input_model,
         with open(output_path + "/difference_" + str(i) + ".csv", "w") as file:
             write_to_file(file, difference_matrix)
 
+    if plot_output_bool:
+        plt.plot(output[0][0, :])
+        plt.show()
+
+        plt.plot(y_test[0][0, :])
+        plt.show()
+
     return output, start_position, out_of_bounds_bool
+
+
+def normalise_and_save(input_data, output_path):
+    data_array = rescale_linear(input_data, 0.0, 1.0)
+
+    np.save(output_path, data_array)
+
+    return data_array
+
+
+def downsample_and_power_transform_normalise(input_path, tof_bool, new_min, new_max, output_path):
+    for i in range(len(input_path)):
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
+
+        if not tof_bool:
+            data_array = np.nanmean(data_array, 3)
+
+        data_array = data_array.T
+        data_array_shape = data_array.shape
+
+        data_array = np.reshape(data_array.flatten(), [-1, 1])
+
+        pt = PowerTransformer()
+        data_array = pt.fit_transform(data_array)
+
+        data_array = np.reshape(data_array, data_array_shape)
+
+        data_array = rescale_linear(data_array, new_min, new_max)
+
+        np.save(output_path[i], data_array)
+
+    return output_path
+
+
+def power_transform(input_path, output_path):
+    for i in range(len(input_path)):
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
+
+        data_array_shape = data_array.shape
+
+        data_array = np.reshape(data_array.flatten(), [-1, 1])
+
+        pt = PowerTransformer()
+        data_array = pt.fit_transform(data_array)
+
+        data_array = np.reshape(data_array, data_array_shape)
+
+        np.save(output_path[i], data_array)
+
+    return output_path
 
 
 def histogram_equalisation(data_array, number_of_bins):
@@ -685,26 +633,30 @@ def histogram_equalisation(data_array, number_of_bins):
     return output
 
 
-def downsample_histogram_equalisation_and_standardise_input_data(input_data, number_of_bins, output_path):
-    data_array = histogram_equalisation(input_data, number_of_bins)
-
-    data_array = scipy.stats.zscore(data_array)
-
-    np.save(output_path, data_array.astype(np.float32))
-
-
-def downsample_histogram_equalisation_and_standardise(input_path, tof_bool, number_of_bins, output_path):
+def contrast_equalisation(input_path, number_of_bins, output_path):
     for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
-
-        data_array = data.get(list(data.keys())[3])
-
-        if not tof_bool:
-            data_array = np.mean(data_array, 3)
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
 
         data_array = data_array.T
 
         data_array = histogram_equalisation(data_array, number_of_bins)
+
+        np.save(output_path[i], data_array)
+
+    return output_path
+
+
+def standardise(input_path, output_path):
+    for i in range(len(input_path)):
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
 
         data_array_shape = data_array.shape
 
@@ -715,64 +667,40 @@ def downsample_histogram_equalisation_and_standardise(input_path, tof_bool, numb
 
         data_array = np.reshape(data_array, data_array_shape)
 
-        np.save(output_path[i], data_array.astype(np.float32))
+        np.save(output_path[i], data_array)
+
+    return output_path
 
 
-def downsample_histogram_equalisation_and_zscore(input_path, tof_bool, number_of_bins, output_path):
+def zscore_normalise(input_path, new_min, new_max, output_path):
     for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
 
-        data_array = data.get(list(data.keys())[3])
+        data_array = scipy.stats.zscore(data_array)
+        data_array = rescale_linear(data_array, new_min, new_max)
 
-        if not tof_bool:
-            data_array = np.mean(data_array, 3)
+        np.save(output_path[i], data_array)
 
-        data_array = data_array.T
+    return output_path
 
-        data_array = histogram_equalisation(data_array, number_of_bins)
+
+def zscore(input_path, output_path):
+    for i in range(len(input_path)):
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
 
         data_array = scipy.stats.zscore(data_array)
 
-        np.save(output_path[i], data_array.astype(np.float32))
+        np.save(output_path[i], data_array)
 
-
-def downsample_and_standardise(input_path, tof_bool, output_path):
-    for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
-
-        data_array = data.get(list(data.keys())[3])
-
-        if not tof_bool:
-            data_array = np.nanmean(data_array, 3)
-
-        data_array = data_array.T
-
-        data_array_shape = data_array.shape
-
-        np.reshape(data_array.flatten(), [-1, 1])
-
-        transformer = RobustScaler().fit(data_array)
-        data_array = transformer.transform(data_array)
-
-        data_array = np.reshape(data_array, data_array_shape)
-
-        np.save(output_path[i], data_array.astype(np.float32))
-
-
-def downsample_and_zscore(input_path, tof_bool, output_path):
-    for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
-
-        data_array = data.get(list(data.keys())[3])
-
-        if not tof_bool:
-            data_array = np.nanmean(data_array, 3)
-
-        data_array = data_array.T
-
-        data_array = scipy.stats.zscore(data_array)
-
-        np.save(output_path[i], data_array.astype(np.float32))
+    return output_path
 
 
 # https://stackoverflow.com/questions/36000843/scale-numpy-array-to-certain-range
@@ -784,31 +712,19 @@ def rescale_linear(array, new_min, new_max):
     return m * array + b
 
 
-def standardise(input_path, output_path):
+def normalise(input_path, output_path, new_min, new_max):
     for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
-        data_array = data.get(list(data.keys())[3])
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
 
-        data_array_shape = data_array.shape
+        data_array = rescale_linear(data_array, new_min, new_max)
 
-        np.reshape(data_array.flatten(), [-1, 1])
+        np.save(output_path[i], data_array)
 
-        transformer = RobustScaler().fit(data_array)
-        data_array = transformer.transform(data_array)
-
-        data_array = np.reshape(data_array, data_array_shape)
-
-        np.save(output_path[i], data_array.astype(np.float32))
-
-
-def zscore(input_path, output_path):
-    for i in range(len(input_path)):
-        data = scipy.io.loadmat(input_path[i])
-        data_array = data.get(list(data.keys())[3])
-
-        data_array = scipy.stats.zscore(data_array)
-
-        np.save(output_path[i], data_array.astype(np.float32))
+    return output_path
 
 
 def concat_array_list(data):
@@ -818,7 +734,7 @@ def concat_array_list(data):
     for i in range(len(data)):
         temp_list = []
 
-        new_data = np.load(data[i], mmap_mode='c')
+        new_data = np.load(data[i])
 
         for j in range(len(data_list)):
             temp_list.append(data_list[j])
@@ -837,10 +753,10 @@ def concat_array_list(data):
 
 def concat_one_input(x, y, x_output, y_output, cut_list_output):
     x_data, cut_list = concat_array_list(x)
-    np.save(x_output, x_data.astype(np.float32))
+    np.save(x_output, x_data)
 
     y_data, cut_list_y = concat_array_list(y)
-    np.save(y_output, y_data.astype(np.float32))
+    np.save(y_output, y_data)
 
     np.save(cut_list_output, np.asarray(cut_list).astype(np.int))
 
@@ -848,8 +764,8 @@ def concat_one_input(x, y, x_output, y_output, cut_list_output):
 
 
 def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_list_output, split, window_size):
-    x_data = np.load(x[0], mmap_mode='c')
-    y_data = np.load(y[0], mmap_mode='c')
+    x_data = np.load(x[0])
+    y_data = np.load(y[0])
 
     test_data_index = []
     cut_list = []
@@ -893,10 +809,10 @@ def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_
     x_data = x_data.take(data_index, axis=0)
     y_data = y_data.take(data_index, axis=0)
 
-    np.save(test_x_output, test_x_data.astype(np.float32))
-    np.save(test_y_output, test_y_data.astype(np.float32))
-    np.save(x_output, x_data.astype(np.float32))
-    np.save(y_output, y_data.astype(np.float32))
+    np.save(test_x_output, test_x_data)
+    np.save(test_y_output, test_y_data)
+    np.save(x_output, x_data)
+    np.save(y_output, y_data)
 
     partial_data_list = [data_index[0]]
     previous_value = data_index[0]
@@ -914,25 +830,30 @@ def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_
 
 def main(fit_model_bool, while_bool, load_bool):
     save_bool = True
+    load_full_model_bool = True
     plot_bool = True
+    plot_output_bool = False
     apply_bool = False
     passthrough_bool = False
     single_input_bool = True
+    autoencoder_input_bool = False
     dynamic_bool = True
     static_bool = True
     concat_one_input_bool = True
-    reload_data = True
+    reload_data = not load_bool
+    force_no_reload_bool = True
     tof_bool = False
     stochastic_bool = True
     noisy_bool = False
     flip_bool = True
 
-    output_all_bool = False
-    number_of_bins = 1000000
+    output_all_bool = True
+    number_of_bins = 10000000
+    noise_factor = 0.0
 
-    cv_bool = True
+    cv_bool = False
     cv_simple_bool = False
-    cv_simple_test_bool = True
+    cv_simple_test_bool = False
     cv_pos = 0
 
     output_to_output = 0
@@ -946,154 +867,14 @@ def main(fit_model_bool, while_bool, load_bool):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    if single_input_bool:
-        if static_bool:
-            x_path_orig_list = [
-                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/sinos_1.mat"]
-            y_path_orig_list = [
-                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/output_signal_1.mat"]
+    x_path_orig_list, x_path_list, test_x_path_list, y_path_orig_list, test_y_path_list, y_path_list, output_file_name = pca_nn_paths.get_paths(
+        single_input_bool, static_bool, autoencoder_input_bool, dynamic_bool)
 
-            x_path_list = ["normalised_sinos_preprocessed_static_1.npy"]
-            y_path_list = ["output_signal_preprocessed_static_1.npy"]
-
-            output_file_name = ["estimated_signal_static_1"]
-        else:
-            x_path_orig_list = [
-                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/sinos_1.mat"]
-            y_path_orig_list = [
-                "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/output_signal_1.mat"]
-
-            x_path_list = ["normalised_sinos_preprocessed_dynamic_1.npy"]
-            y_path_list = ["output_signal_preprocessed_dynamic_1.npy"]
-
-            output_file_name = ["estimated_signal_dynamic_1"]
-    else:
-        x_path_orig_list = []
-        y_path_orig_list = []
-
-        x_path_list = []
-        y_path_list = []
-
-        output_file_name = []
-
-        if dynamic_bool:
-            x_path_orig_list.extend(
-                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/sinos_1.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/Baseline/sinos_3.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG005/Baseline/sinos_5.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG006/Baseline/sinos_6.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/Baseline/sinos_7.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/Baseline/sinos_8.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG009/Baseline/sinos_9.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/PostTreatment/sinos_15.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/PostTreatment/sinos_19.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/PostTreatment/sinos_20.mat"])
-            y_path_orig_list.extend(
-                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG001/Baseline/output_signal_1.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/Baseline/output_signal_3.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG005/Baseline/output_signal_5.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG006/Baseline/output_signal_6.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/Baseline/output_signal_7.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/Baseline/output_signal_8.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG009/Baseline/output_signal_9.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG003/PostTreatment/output_signal_15.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG007/PostTreatment/output_signal_19.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan1/COAG008/PostTreatment/output_signal_20.mat"])
-
-            x_path_list.extend(["normalised_sinos_preprocessed_dynamic_1.npy",
-                                "normalised_sinos_preprocessed_dynamic_3.npy",
-                                "normalised_sinos_preprocessed_dynamic_5.npy",
-                                "normalised_sinos_preprocessed_dynamic_6.npy",
-                                "normalised_sinos_preprocessed_dynamic_7.npy",
-                                "normalised_sinos_preprocessed_dynamic_8.npy",
-                                "normalised_sinos_preprocessed_dynamic_9.npy",
-                                "normalised_sinos_preprocessed_dynamic_15.npy",
-                                "normalised_sinos_preprocessed_dynamic_19.npy",
-                                "normalised_sinos_preprocessed_dynamic_20.npy"])
-            y_path_list.extend(["output_signal_preprocessed_dynamic_1.npy",
-                                "output_signal_preprocessed_dynamic_3.npy",
-                                "output_signal_preprocessed_dynamic_5.npy",
-                                "output_signal_preprocessed_dynamic_6.npy",
-                                "output_signal_preprocessed_dynamic_7.npy",
-                                "output_signal_preprocessed_dynamic_8.npy",
-                                "output_signal_preprocessed_dynamic_9.npy",
-                                "output_signal_preprocessed_dynamic_15.npy",
-                                "output_signal_preprocessed_dynamic_19.npy",
-                                "output_signal_preprocessed_dynamic_20.npy"])
-
-            output_file_name.extend(["estimated_signal_dynamic_1",
-                                     "estimated_signal_dynamic_3",
-                                     "estimated_signal_dynamic_5",
-                                     "estimated_signal_dynamic_6",
-                                     "estimated_signal_dynamic_7",
-                                     "estimated_signal_dynamic_8",
-                                     "estimated_signal_dynamic_9",
-                                     "estimated_signal_dynamic_15",
-                                     "estimated_signal_dynamic_19",
-                                     "estimated_signal_dynamic_20"])
-
-        if static_bool:
-            x_path_orig_list.extend(
-                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/sinos_1.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG006/Baseline/sinos_6.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/Baseline/sinos_7.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/Baseline/sinos_8.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/PostTreatment/sinos_12.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG004/PostTreatment/sinos_15.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/PostTreatment/sinos_18.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/PostTreatment/sinos_19.mat"])
-            y_path_orig_list.extend(
-                ["/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/Baseline/output_signal_1.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG006/Baseline/output_signal_6.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/Baseline/output_signal_7.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/Baseline/output_signal_8.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG001/PostTreatment/output_signal_12.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG004/PostTreatment/output_signal_15.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG007/PostTreatment/output_signal_18.mat",
-                 "/home/alex/Documents/jrmomo/moving_window_pet_pca/output/Scan2/COAG008/PostTreatment/output_signal_19.mat"])
-
-            x_path_list.extend(["normalised_sinos_preprocessed_static_1.npy",
-                                "normalised_sinos_preprocessed_static_6.npy",
-                                "normalised_sinos_preprocessed_static_7.npy",
-                                "normalised_sinos_preprocessed_static_8.npy",
-                                "normalised_sinos_preprocessed_static_12.npy",
-                                "normalised_sinos_preprocessed_static_15.npy",
-                                "normalised_sinos_preprocessed_static_18.npy",
-                                "normalised_sinos_preprocessed_static_19.npy"])
-            y_path_list.extend(["output_signal_preprocessed_static_1.npy",
-                                "output_signal_preprocessed_static_6.npy",
-                                "output_signal_preprocessed_static_7.npy",
-                                "output_signal_preprocessed_static_8.npy",
-                                "output_signal_preprocessed_static_12.npy",
-                                "output_signal_preprocessed_static_15.npy",
-                                "output_signal_preprocessed_static_18.npy",
-                                "output_signal_preprocessed_static_19.npy"])
-
-            output_file_name.extend(["estimated_signal_static_1",
-                                     "estimated_signal_static_6",
-                                     "estimated_signal_static_7",
-                                     "estimated_signal_static_8",
-                                     "estimated_signal_static_12",
-                                     "estimated_signal_static_15",
-                                     "estimated_signal_static_18",
-                                     "estimated_signal_static_19"])
-
-    test_x_path_orig_list = x_path_orig_list
-    test_y_path_orig_list = y_path_orig_list
-
-    test_x_path_list = x_path_list
-    test_y_path_list = y_path_list
-
-    test_output_file_name = output_file_name
-
-    if reload_data:
+    if reload_data and not force_no_reload_bool:
         print("Getting data")
 
-        # downsample_histogram_equalisation_and_standardise(x_path_orig_list, tof_bool, number_of_bins, x_path_list)
-        # standardise(y_path_orig_list, y_path_list)
-
-        downsample_and_zscore(x_path_orig_list, tof_bool, x_path_list)
-        zscore(y_path_orig_list, y_path_list)
+        x_path_list = downsample_and_power_transform_normalise(x_path_orig_list, tof_bool, -1.0, 1.0, x_path_list)
+        y_path_list = zscore_normalise(y_path_orig_list, -1.0, 1.0, y_path_list)
 
         print("Got data")
 
@@ -1155,22 +936,14 @@ def main(fit_model_bool, while_bool, load_bool):
                     output_file_name.append(temp_output_file_name[i])
 
             if len(x_path_orig_list) < 1:
-                x_path_orig_list = test_x_path_orig_list
-                y_path_orig_list = test_y_path_orig_list
-
                 x_path_list = test_x_path_list
                 y_path_list = test_y_path_list
 
                 output_file_name = test_output_file_name
 
             if len(test_x_path_orig_list) < 1:
-                test_x_path_orig_list = x_path_orig_list
-                test_path_orig_list = y_path_orig_list
-
                 test_x_path_list = x_path_list
                 test_y_path_list = y_path_list
-
-                test_output_file_name = output_file_name
         else:
             temp_test_x_path_list = test_x_path_list
             temp_test_y_path_list = test_y_path_list
@@ -1179,11 +952,8 @@ def main(fit_model_bool, while_bool, load_bool):
             y_output = "y_one_input.npy"
             cut_list_output = "cut_list_input.npy"
 
-            if reload_data:
-                x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list, x_output, y_output,
-                                                                      cut_list_output)
-            else:
-                cut_list = np.load(cut_list_output, mmap_mode='c')
+            if reload_data and not force_no_reload_bool:
+                concat_one_input(x_path_list, y_path_list, x_output, y_output, cut_list_output)
 
             x_path_list = [x_output]
             y_path_list = [y_output]
@@ -1194,7 +964,7 @@ def main(fit_model_bool, while_bool, load_bool):
             test_y_output = "split_test_y_one_input.npy"
             cut_list_output = "split_cut_list_input.npy"
 
-            if reload_data:
+            if reload_data and not force_no_reload_bool:
                 x_path_list, y_path_list, test_x_path_list, test_y_path_list, cut_list = split_one_input(x_path_list,
                                                                                                          y_path_list,
                                                                                                          x_output,
@@ -1205,7 +975,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                                          0.5,
                                                                                                          window_size)
             else:
-                cut_list = np.load(cut_list_output, mmap_mode='c')
+                cut_list = np.load(cut_list_output)
 
             x_path_list = [x_output]
             y_path_list = [y_output]
@@ -1218,10 +988,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
     if fit_model_bool:
         window_stride_size = 1
-        epochs = 1000
-
-        mid_tap_bool = False
-        high_tap_bool = False
+        epochs = 1
 
         if cv_simple_bool:
             if concat_one_input_bool:
@@ -1229,11 +996,11 @@ def main(fit_model_bool, while_bool, load_bool):
                 y_output = "y_one_input.npy"
                 cut_list_output = "cut_list_input.npy"
 
-                if reload_data:
+                if reload_data and not force_no_reload_bool:
                     x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list, x_output, y_output,
                                                                           cut_list_output)
                 else:
-                    cut_list = np.load(cut_list_output, mmap_mode='c')
+                    cut_list = np.load(cut_list_output)
 
                 x_path_list = [x_output]
                 y_path_list = [y_output]
@@ -1274,12 +1041,12 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 print("Path: " + str(i) + "/" + str(path_length))
 
-                data_size = np.load(y_path_list[i], mmap_mode='c').shape[0]
+                data_size = np.load(y_path_list[i]).shape[0]
 
                 test_data_size = None
 
                 if cv_bool:
-                    test_data_size = np.load(test_y_path_list[i], mmap_mode='c').shape[0]
+                    test_data_size = np.load(test_y_path_list[i]).shape[0]
 
                 if tof_bool:
                     ideal_data_window_size = window_size
@@ -1309,11 +1076,10 @@ def main(fit_model_bool, while_bool, load_bool):
                     if not cv_bool and not concat_one_input_bool:
                         cut_list = [data_size]
 
-                    out_of_bounds_bool = False
-
                     while_model, start_position, out_of_bounds_bool = fit_model(while_model,
                                                                                 save_bool,
                                                                                 load_bool,
+                                                                                load_full_model_bool,
                                                                                 plot_bool,
                                                                                 apply_bool,
                                                                                 x_path_list[i],
@@ -1325,29 +1091,27 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 data_size,
                                                                                 window_stride_size,
                                                                                 output_path,
-                                                                                tof_bool,
                                                                                 stochastic_bool,
                                                                                 noisy_bool,
+                                                                                tof_bool,
                                                                                 passthrough_bool,
                                                                                 epochs,
                                                                                 output_all_bool,
-                                                                                number_of_bins,
+                                                                                plot_output_bool,
                                                                                 cut_list,
-                                                                                mid_tap_bool,
-                                                                                high_tap_bool)
+                                                                                noise_factor)
 
                     if cv_bool:
                         cv_index = cv_index + 1
 
                         while_model, output = evaluate_model(while_model, test_x_path_list[0], test_y_path_list[0], 0,
                                                              data_window_size, window_size, test_data_size,
-                                                             window_stride_size, output_path, [test_data_size],
-                                                             mid_tap_bool, high_tap_bool)
+                                                             window_stride_size, output_path, [test_data_size])
 
                         with open(cv_tracker_path, 'a') as file:
                             file.write("{0}\n".format(str(output)))
 
-                        while_model.save(output_path + "/cv_model_{0}.h5".format(str(cv_index)))
+                        while_model.save(output_path + "/cv_model_{0}".format(str(cv_index)))
 
                         with open(output_path + "/cv_index", "w") as file:
                             file.write(str(cv_index))
@@ -1376,14 +1140,14 @@ def main(fit_model_bool, while_bool, load_bool):
         print("Test model")
         print("Load model from file")
 
-        model = k.models.load_model(output_path + "/model.h5")
+        model = k.models.load_model(output_path + "/model")
 
         path_length = len(x_path_list)
 
         for i in range(path_length):
             print("Path: " + str(i) + "/" + str(path_length))
 
-            data_array = np.load(test_y_path_list[i], mmap_mode='c')
+            data_array = np.load(test_y_path_list[i])
             data_size = data_array.shape[0]
 
             if tof_bool:
@@ -1424,7 +1188,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                 output_path,
                                                                                 output_path,
                                                                                 output_all_bool,
-                                                                                number_of_bins)
+                                                                                plot_output_bool)
 
                 current_output = current_output[output_to_output]
 
@@ -1433,8 +1197,6 @@ def main(fit_model_bool, while_bool, load_bool):
                         with open(output_path + output_file_name[i] + "_part_" + str(i) + "_" + str(j) + "_" + str(
                                 l) + output_prefix, "w") as file:
                             write_to_file(file, current_output[l].reshape(current_output[l].size, 1))
-
-                    current_output[l] = scipy.stats.zscore(current_output[l])
 
                 current_output_list = current_output.tolist()
 
@@ -1473,7 +1235,6 @@ def main(fit_model_bool, while_bool, load_bool):
                             output_array[i] = output_array[i] * -1
 
             output = np.nanmean(np.asfarray(output_array), axis=0)
-            output = scipy.stats.zscore(output)
 
             with open(output_path + output_file_name[i] + output_prefix, "w") as file:
                 write_to_file(file, output.reshape(output.size, 1))

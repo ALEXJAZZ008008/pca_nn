@@ -92,8 +92,10 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
         x.append(np.asfarray(x_window))
 
     x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5))
-    x_array_noisy = (x_array + (noise_factor * np.random.normal(loc=0.0, scale=1.0, size=x_array.shape))) / (
-            1.0 + noise_factor)
+
+    noise_array = rescale_linear(np.random.normal(loc=0.0, scale=1.0, size=x_array.shape), -1.0, 1.0)
+    x_array_noisy = (x_array + (noise_factor * noise_array))
+    x_array_noisy = np.clip(x_array_noisy, -1.0, 1.0)
 
     print("Got x")
 
@@ -203,9 +205,7 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
 def generate_model(y_train, x_train_noisy, window_size, tof_bool):
     print("Generate new model")
 
-    input_size = int(math.ceil(np.prod(x_train_noisy.shape[1:]) / window_size))
     output_size = y_train.shape[1:][0]
-    output_shape = x_train_noisy.shape[2:]
 
     input_x = k.layers.Input(x_train_noisy.shape[1:])
 
@@ -214,28 +214,17 @@ def generate_model(y_train, x_train_noisy, window_size, tof_bool):
     # network settings
     network_to_data_normalisation_multiplier = 1.0
 
-    # dense
-
-    stride_multiplier = 4
-    stride = math.pow(2, stride_multiplier)
-    stride = int(math.floor(stride))
-    layers = 1
-    layers_layers = 1
-
-    # cnn
-
-    base_units_multiplier = 5
+    base_units_multiplier = 3
     base_units = math.pow(2, base_units_multiplier)
     base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
 
-    cnn_bool = True
     cnn_start_units = base_units
     cnn_layers = 3
     cnn_increase_layer_density_bool = False
     cnn_layer_layers = 1
-    cnn_pool_bool = True
+    cnn_pool_bool = False
     cnn_max_pool_bool = True
-    cnn_deconvolution_bool = False
+    cnn_deconvolution_bool = True
 
     rnn_multiplier = 2
     rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
@@ -253,40 +242,11 @@ def generate_model(y_train, x_train_noisy, window_size, tof_bool):
     optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
     print("Output: {0}".format(optimised_rnn_units))
 
-    if cnn_bool:
-        if tof_bool:
-            base_units_multiplier = 1
-            base_units = math.pow(2, base_units_multiplier)
-            base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
-
-            cnn_start_units = base_units
-            cnn_layers = 1
-            cnn_increase_layer_density_bool = True
-            cnn_layer_layers = 0
-
-            rnn_multiplier = 1
-            rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
-            rnn_units = int(math.floor(window_size * rnn_multiplier))
-            rnn_layers = 1
-
-            regularisation_epsilon = 0.0
-            lone = regularisation_epsilon
-            ltwo = regularisation_epsilon
-            dropout = 0.0
-            auto_encoder_weight = 0.0
-
-            x_1, x_2 = test_3.tof_crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
-                                                                cnn_increase_layer_density_bool, cnn_layer_layers, lone,
-                                                                ltwo, rnn_layers, rnn_units, dropout, output_size)
-        else:
-            x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
-                                                            cnn_increase_layer_density_bool, cnn_layer_layers, lone,
-                                                            ltwo, cnn_pool_bool, cnn_max_pool_bool,
-                                                            cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
-                                                            dropout, output_size)
-    else:
-        x_1, x_2 = test_3.dense_dynamic_signal_extractor(x, stride, layers, layers_layers, input_size, lone, ltwo,
-                                                         rnn_layers, rnn_units, dropout, output_size, output_shape)
+    x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
+                                                    cnn_increase_layer_density_bool, cnn_layer_layers, lone,
+                                                    ltwo, cnn_pool_bool, cnn_max_pool_bool,
+                                                    cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
+                                                    dropout, output_size)
 
     model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
@@ -844,12 +804,12 @@ def main(fit_model_bool, while_bool, load_bool):
     force_no_reload_bool = True
     tof_bool = False
     stochastic_bool = True
-    noisy_bool = False
+    noisy_bool = True
     flip_bool = True
 
     output_all_bool = True
     number_of_bins = 10000000
-    noise_factor = 0.0
+    noise_factor = 0.5
 
     cv_bool = False
     cv_simple_bool = False

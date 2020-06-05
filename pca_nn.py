@@ -93,9 +93,8 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
     x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5))
 
-    noise_array = rescale_linear(np.random.normal(loc=0.0, scale=1.0, size=x_array.shape), -1.0, 1.0)
-    x_array_noisy = (x_array + (noise_factor * noise_array))
-    x_array_noisy = np.clip(x_array_noisy, -1.0, 1.0)
+    noise_array = np.random.normal(loc=0.0, scale=1.0, size=x_array.shape)
+    x_array_noisy = (x_array + (noise_factor * noise_array)) / (1.0 + noise_factor)
 
     print("Got x")
 
@@ -532,7 +531,7 @@ def normalise_and_save(input_data, output_path):
     return data_array
 
 
-def downsample_and_power_transform_normalise(input_path, tof_bool, new_min, new_max, output_path):
+def downsample_and_contrast_equalise_power_transform_zscore(input_path, tof_bool, number_of_bins, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
@@ -544,6 +543,9 @@ def downsample_and_power_transform_normalise(input_path, tof_bool, new_min, new_
             data_array = np.nanmean(data_array, 3)
 
         data_array = data_array.T
+
+        data_array = histogram_equalisation(data_array, number_of_bins)
+
         data_array_shape = data_array.shape
 
         data_array = np.reshape(data_array.flatten(), [-1, 1])
@@ -553,7 +555,22 @@ def downsample_and_power_transform_normalise(input_path, tof_bool, new_min, new_
 
         data_array = np.reshape(data_array, data_array_shape)
 
-        data_array = rescale_linear(data_array, new_min, new_max)
+        data_array = scipy.stats.zscore(data_array)
+
+        np.save(output_path[i], data_array)
+
+    return output_path
+
+
+def power_transform_zscore(input_path, output_path):
+    for i in range(len(input_path)):
+        try:
+            data = scipy.io.loadmat(input_path[i])
+            data_array = data.get(list(data.keys())[3])
+        except:
+            data_array = np.load(input_path[i])
+
+        data_array = scipy.stats.zscore(data_array)
 
         np.save(output_path[i], data_array)
 
@@ -626,22 +643,6 @@ def standardise(input_path, output_path):
         data_array = transformer.transform(data_array)
 
         data_array = np.reshape(data_array, data_array_shape)
-
-        np.save(output_path[i], data_array)
-
-    return output_path
-
-
-def zscore_normalise(input_path, new_min, new_max, output_path):
-    for i in range(len(input_path)):
-        try:
-            data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
-        except:
-            data_array = np.load(input_path[i])
-
-        data_array = scipy.stats.zscore(data_array)
-        data_array = rescale_linear(data_array, new_min, new_max)
 
         np.save(output_path[i], data_array)
 
@@ -796,9 +797,13 @@ def main(fit_model_bool, while_bool, load_bool):
     apply_bool = False
     passthrough_bool = False
     single_input_bool = True
+    static_bool = True
     autoencoder_input_bool = False
     dynamic_bool = True
-    static_bool = True
+    tested_input_bool = True
+    original_bool = False
+    pca_bool = False
+    conservative_bool = True
     concat_one_input_bool = True
     reload_data = not load_bool
     force_no_reload_bool = True
@@ -828,13 +833,15 @@ def main(fit_model_bool, while_bool, load_bool):
         os.makedirs(output_path)
 
     x_path_orig_list, x_path_list, test_x_path_list, y_path_orig_list, test_y_path_list, y_path_list, output_file_name = pca_nn_paths.get_paths(
-        single_input_bool, static_bool, autoencoder_input_bool, dynamic_bool)
+        single_input_bool, static_bool, autoencoder_input_bool, dynamic_bool, tested_input_bool, original_bool,
+        pca_bool, conservative_bool)
 
     if reload_data and not force_no_reload_bool:
         print("Getting data")
 
-        x_path_list = downsample_and_power_transform_normalise(x_path_orig_list, tof_bool, -1.0, 1.0, x_path_list)
-        y_path_list = zscore_normalise(y_path_orig_list, -1.0, 1.0, y_path_list)
+        x_path_list = downsample_and_contrast_equalise_power_transform_zscore(x_path_orig_list, tof_bool,
+                                                                              number_of_bins, x_path_list)
+        y_path_list = power_transform_zscore(y_path_orig_list, y_path_list)
 
         print("Got data")
 

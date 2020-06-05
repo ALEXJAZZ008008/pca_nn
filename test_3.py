@@ -4,7 +4,6 @@
 
 
 import math
-import tensorflow as tf
 import keras as k
 
 
@@ -67,7 +66,11 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                         strides=(1, 1, 1),
                                                         padding="same",
                                                         kernel_initializer="glorot_normal",
-                                                        bias_initializer=k.initializers.Constant(0.1)))(x)
+                                                        bias_initializer=k.initializers.Constant(0.1),
+                                                        kernel_regularizer=k.regularizers.l1_l2(l1=lone,
+                                                                                                l2=ltwo),
+                                                        kernel_constraint=k.constraints.UnitNorm()))(x)
+    x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
     x = k.layers.TimeDistributed(k.layers.Activation("tanh"))(x)
 
     for i in range(cnn_start_units_log, cnn_end_units_log):
@@ -88,7 +91,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                 kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                         l2=ltwo),
                                                                 kernel_constraint=k.constraints.UnitNorm()))(x)
-            x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
+            # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
             x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
         if cnn_pool_bool:
@@ -106,7 +109,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                 kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                         l2=ltwo),
                                                                 kernel_constraint=k.constraints.UnitNorm()))(x)
-            x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
+            # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
             x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
     for j in range(cnn_layer_layers):
@@ -119,7 +122,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                             kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                     l2=ltwo),
                                                             kernel_constraint=k.constraints.UnitNorm()))(x)
-        x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
+        # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
         x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
     # RNN
@@ -160,7 +163,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
     x_1 = k.layers.Dense(units=output_size,
                          kernel_initializer="glorot_normal",
                          bias_initializer=k.initializers.Constant(0.1))(x_1)
-    x_1 = k.layers.Activation("tanh", name="output_1")(x_1)
+    x_1 = k.layers.Activation("linear", name="output_1")(x_1)
 
     # UPSAMPLE
     decrement = len(x_skip) - 1
@@ -177,7 +180,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                               kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                       l2=ltwo),
                                                               kernel_constraint=k.constraints.UnitNorm()))(x_2)
-        x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
+        # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
         x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
 
     for i in reversed(range(cnn_start_units_log, cnn_end_units_log)):
@@ -198,7 +201,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                     kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                             l2=ltwo),
                                                                     kernel_constraint=k.constraints.UnitNorm()))(x_2)
-            x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
+            # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
             x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
             x_2 = k.layers.Reshape((int(x_2_shape[1]), int(x_2_shape[2] * 2), int(x_2_shape[3] * 2),
                                     int(x_2_shape[4] * 2), int(filters),))(x_2)
@@ -219,7 +222,7 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                   kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                           l2=ltwo),
                                                                   kernel_constraint=k.constraints.UnitNorm()))(x_2)
-            x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
+            # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
             x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
 
     x_2 = k.layers.TimeDistributed(k.layers.Convolution3D(filters=1,
@@ -228,6 +231,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                           padding="same",
                                                           kernel_initializer="glorot_normal",
                                                           bias_initializer=k.initializers.Constant(0.1)))(x_2)
-    x_2 = k.layers.TimeDistributed(k.layers.Activation("tanh"), name="output_2")(x_2)
+    x_2 = k.layers.TimeDistributed(k.layers.Activation("linear"), name="output_2")(x_2)
 
     return x_1, x_2

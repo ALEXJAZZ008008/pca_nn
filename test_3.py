@@ -4,7 +4,7 @@
 
 
 import math
-import keras as k
+import tensorflow.keras as k
 
 
 # https://github.com/zizhaozhang/unet-tensorflow-keras/blob/master/model.py
@@ -91,7 +91,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                 kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                         l2=ltwo),
                                                                 kernel_constraint=k.constraints.UnitNorm()))(x)
-            # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
             x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
         if cnn_pool_bool:
@@ -109,7 +108,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                 kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                         l2=ltwo),
                                                                 kernel_constraint=k.constraints.UnitNorm()))(x)
-            # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
             x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
     for j in range(cnn_layer_layers):
@@ -122,7 +120,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                             kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                     l2=ltwo),
                                                             kernel_constraint=k.constraints.UnitNorm()))(x)
-        # x = k.layers.TimeDistributed(k.layers.BatchNormalization())(x)
         x = k.layers.TimeDistributed(k.layers.Activation("selu"))(x)
 
     # RNN
@@ -180,7 +177,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                               kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                       l2=ltwo),
                                                               kernel_constraint=k.constraints.UnitNorm()))(x_2)
-        # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
         x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
 
     for i in reversed(range(cnn_start_units_log, cnn_end_units_log)):
@@ -192,16 +188,18 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
         if cnn_deconvolution_bool:
             x_2_shape = x_2.get_shape()
 
-            x_2 = k.layers.TimeDistributed(k.layers.Deconvolution3D(filters=filters,
-                                                                    kernel_size=(3, 3, 3),
-                                                                    strides=(2, 2, 2),
-                                                                    padding="same",
-                                                                    kernel_initializer="lecun_normal",
-                                                                    bias_initializer=k.initializers.Constant(0.1),
-                                                                    kernel_regularizer=k.regularizers.l1_l2(l1=lone,
-                                                                                                            l2=ltwo),
-                                                                    kernel_constraint=k.constraints.UnitNorm()))(x_2)
-            # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
+            x_2 = k.layers.TimeDistributed(k.layers.Convolution3DTranspose(filters=filters,
+                                                                           kernel_size=(3, 3, 3),
+                                                                           strides=(2, 2, 2),
+                                                                           padding="same",
+                                                                           kernel_initializer="lecun_normal",
+                                                                           bias_initializer=k.initializers.Constant(
+                                                                               0.1),
+                                                                           kernel_regularizer=k.regularizers.l1_l2(
+                                                                               l1=lone,
+                                                                               l2=ltwo),
+                                                                           kernel_constraint=k.constraints.UnitNorm()))(
+                x_2)
             x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
             x_2 = k.layers.Reshape((int(x_2_shape[1]), int(x_2_shape[2] * 2), int(x_2_shape[3] * 2),
                                     int(x_2_shape[4] * 2), int(filters),))(x_2)
@@ -222,7 +220,6 @@ def crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers, cnn_increase_l
                                                                   kernel_regularizer=k.regularizers.l1_l2(l1=lone,
                                                                                                           l2=ltwo),
                                                                   kernel_constraint=k.constraints.UnitNorm()))(x_2)
-            # x_2 = k.layers.TimeDistributed(k.layers.BatchNormalization())(x_2)
             x_2 = k.layers.TimeDistributed(k.layers.Activation("selu"))(x_2)
 
     x_2 = k.layers.TimeDistributed(k.layers.Convolution3D(filters=1,

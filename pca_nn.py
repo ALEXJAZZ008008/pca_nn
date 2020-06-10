@@ -30,11 +30,14 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-import keras as k
+tf.compat.v1.disable_eager_execution()
+print("Is eager: {0}".format(tf.executing_eagerly()))
+
+import tensorflow.keras as k
 
 import pca_nn_paths
 import optimise
-import test_3
+import test_4
 
 
 def get_x_stochastic(input_path, start_position, data_window_size, window_size, data_size, window_stride_size,
@@ -50,7 +53,7 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
 
     x = []
 
-    sinos_array = np.load(input_path)
+    sinos_array = np.load(input_path, mmap_mode='c').astype('float32')
 
     data_load_out_of_bounds_bool = False
 
@@ -89,24 +92,25 @@ def get_x_stochastic(input_path, start_position, data_window_size, window_size, 
         if data_load_out_of_bounds_bool:
             break
 
-        x.append(np.asfarray(x_window))
+        x.append(np.asfarray(x_window).astype('float32'))
 
-    x_array = np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5))
+    x_array = np.nan_to_num(np.expand_dims(np.asfarray(x).astype('float32'), axis=5))
 
     noise_array = np.random.normal(loc=0.0, scale=1.0, size=x_array.shape)
     x_array_noisy = (x_array + (noise_factor * noise_array)) / (1.0 + noise_factor)
 
     print("Got x")
 
-    return x_array, x_array_noisy, start_position, out_of_bounds_bool, stochastic_i_list
+    return x_array.astype('float32'), x_array_noisy.astype(
+        'float32'), start_position, out_of_bounds_bool, stochastic_i_list
 
 
 def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, stochastic_i_list):
-    print("Get y")
+    print("Getting y")
 
     y = []
 
-    test_array = np.load(input_path)
+    test_array = np.load(input_path, mmap_mode='c').astype('float32')
 
     data_load_out_of_bounds_bool = False
 
@@ -125,11 +129,11 @@ def get_y_stochastic(input_path, window_size, data_size, out_of_bounds_bool, sto
         if data_load_out_of_bounds_bool:
             break
 
-        y.append(np.squeeze(np.asfarray(y_window)))
+        y.append(np.squeeze(np.asfarray(y_window).astype('float32')))
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y))
+    return np.nan_to_num(np.asfarray(y).astype('float32'))
 
 
 def get_x(input_path, start_position, data_window_size, window_size, data_size, window_stride_size):
@@ -144,7 +148,7 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
 
     x = []
 
-    sinos_array = np.load(input_path)
+    sinos_array = np.load(input_path, mmap_mode='c').astype('float32')
 
     data_load_out_of_bounds_bool = False
 
@@ -163,19 +167,19 @@ def get_x(input_path, start_position, data_window_size, window_size, data_size, 
         if data_load_out_of_bounds_bool:
             break
 
-        x.append(np.asfarray(x_window))
+        x.append(np.asfarray(x_window).astype('float32'))
 
     print("Got x")
 
-    return np.nan_to_num(np.expand_dims(np.asfarray(x), axis=5)), start_position, out_of_bounds_bool
+    return np.nan_to_num(np.expand_dims(np.asfarray(x).astype('float32'), axis=5)), start_position, out_of_bounds_bool
 
 
 def get_y(input_path, start_position, data_window_size, window_size, data_size, window_stride_size, out_of_bounds_bool):
-    print("Get y")
+    print("Getting y")
 
     y = []
 
-    test_array = np.load(input_path)
+    test_array = np.load(input_path, mmap_mode='c').astype('float32')
 
     data_load_out_of_bounds_bool = False
 
@@ -194,11 +198,29 @@ def get_y(input_path, start_position, data_window_size, window_size, data_size, 
         if data_load_out_of_bounds_bool:
             break
 
-        y.append(np.squeeze(np.asfarray(y_window)))
+        y.append(np.squeeze(np.asfarray(y_window).astype('float32')))
 
     print("Got y")
 
-    return np.nan_to_num(np.asfarray(y))
+    return np.nan_to_num(np.asfarray(y).astype('float32'))
+
+
+# https://stackoverflow.com/questions/43855162/rmse-rmsle-loss-function-in-keras/43863854
+def root_mean_squared_error(y_true, y_pred):
+    return k.backend.sqrt(k.backend.mean(k.backend.square(y_pred - y_true)))
+
+
+def kl_reconstruction_loss(mu, sigma, beta):
+    # https://medium.com/@Bloomore/how-to-write-a-custom-loss-function-with-additional-arguments-in-keras-5f193929f7a0
+    def loss(y_true, y_pred):
+        # Reconstruction loss
+        reconstruction_loss = root_mean_squared_error(y_true, y_pred)
+        # KL divergence loss
+        kl_loss = 1 + sigma - k.backend.square(mu) - k.backend.exp(sigma)
+        kl_loss = k.backend.sum(kl_loss, axis=-1)
+        kl_loss *= -0.5
+        return reconstruction_loss + (beta + kl_loss)
+    return loss
 
 
 def generate_model(y_train, x_train_noisy, window_size, tof_bool):
@@ -213,22 +235,31 @@ def generate_model(y_train, x_train_noisy, window_size, tof_bool):
     # network settings
     network_to_data_normalisation_multiplier = 1.0
 
-    base_units_multiplier = 3
+    base_units_multiplier = 1
     base_units = math.pow(2, base_units_multiplier)
     base_units = int(math.floor(base_units * network_to_data_normalisation_multiplier))
 
     cnn_start_units = base_units
-    cnn_layers = 3
-    cnn_increase_layer_density_bool = False
+    cnn_layers = 2
+    cnn_increase_layer_density_bool = True
     cnn_layer_layers = 1
     cnn_pool_bool = False
     cnn_max_pool_bool = True
     cnn_deconvolution_bool = True
 
-    rnn_multiplier = 2
+    variational_bool = True
+
+    dense_multiplier = 10
+    dense_multiplier = dense_multiplier * network_to_data_normalisation_multiplier
+    dense_units = int(math.floor(window_size * dense_multiplier))
+    variational_latent_dimentions = dense_units
+    dense_layers = 0
+    beta = 0.0
+
+    rnn_multiplier = 0
     rnn_multiplier = rnn_multiplier * network_to_data_normalisation_multiplier
     rnn_units = int(math.floor(window_size * rnn_multiplier))
-    rnn_layers = 1
+    rnn_layers = 0
 
     regularisation_epsilon = 0.0
     lone = regularisation_epsilon
@@ -241,16 +272,18 @@ def generate_model(y_train, x_train_noisy, window_size, tof_bool):
     optimised_rnn_units = optimise.optimise_value(int(rnn_units), float(dropout))
     print("Output: {0}".format(optimised_rnn_units))
 
-    x_1, x_2 = test_3.crnn_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
-                                                    cnn_increase_layer_density_bool, cnn_layer_layers, lone,
-                                                    ltwo, cnn_pool_bool, cnn_max_pool_bool,
-                                                    cnn_deconvolution_bool, rnn_layers, optimised_rnn_units,
-                                                    dropout, output_size)
+    x_1, x_2, mu, sigma = test_4.autoencoder_dynamic_signal_extractor(x, cnn_start_units, cnn_layers,
+                                                                      cnn_increase_layer_density_bool, cnn_layer_layers,
+                                                                      lone, ltwo, cnn_pool_bool, cnn_max_pool_bool,
+                                                                      variational_bool, dense_units,
+                                                                      variational_latent_dimentions, dense_layers,
+                                                                      cnn_deconvolution_bool, rnn_layers, rnn_units,
+                                                                      dropout, output_size)
 
     model = k.Model(inputs=input_x, outputs=[x_1, x_2])
 
-    model.compile(optimizer=k.optimizers.Nadam(clipnorm=1.0),
-                  loss={"output_1": k.losses.mean_squared_error, "output_2": k.losses.mean_absolute_error},
+    model.compile(optimizer=k.optimizers.Nadam(learning_rate=0.0001, clipnorm=1.0),
+                  loss={"output_1": root_mean_squared_error, "output_2": kl_reconstruction_loss(mu, sigma, beta)},
                   loss_weights=[1.0 - auto_encoder_weight, auto_encoder_weight])
 
     return model
@@ -322,11 +355,11 @@ def fit_model(input_model,
             if load_full_model_bool:
                 print("Load model from file")
 
-                model = k.models.load_model(output_path + "/model")
+                model = k.models.load_model(os.path.abspath(output_path))
             else:
                 model = generate_model(y_train, x_train_noisy, window_size, tof_bool)
 
-                model.load_weights(output_path + "/model_weights")
+                model.load_weights(os.path.abspath(output_path))
         else:
             model = generate_model(y_train, x_train_noisy, window_size, tof_bool)
 
@@ -334,6 +367,7 @@ def fit_model(input_model,
 
         if plot_bool:
             k.utils.plot_model(model, output_path + "model.png")
+
     else:
         print("Using input model")
 
@@ -342,14 +376,14 @@ def fit_model(input_model,
     if not passthrough_bool:
         print("Fitting model")
 
-        model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, epochs=epochs, batch_size=1, shuffle=True,
+        model.fit(x_train_noisy, {"output_1": y_train, "output_2": x_train}, epochs=epochs, batch_size=2, shuffle=True,
                   verbose=1)
 
     if save_bool:
         print("Saving model")
 
-        model.save(output_path + "/model")
-        model.save_weights(output_path + "/model_weights")
+        model.save(os.path.abspath(output_path))
+        model.save_weights(os.path.abspath(output_path))
 
     if not passthrough_bool:
         if apply_bool:
@@ -396,7 +430,7 @@ def evaluate_model(input_model,
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model")
+        model = k.models.load_model(os.path.abspath(model_input_path))
     else:
         model = input_model
 
@@ -456,7 +490,7 @@ def test_model(input_model,
         print("No input model")
         print("Load model from file")
 
-        model = k.models.load_model(model_input_path + "/model")
+        model = k.models.load_model(os.path.abspath(output_path))
     else:
         model = input_model
 
@@ -526,18 +560,20 @@ def test_model(input_model,
 def normalise_and_save(input_data, output_path):
     data_array = rescale_linear(input_data, 0.0, 1.0)
 
-    np.save(output_path, data_array)
+    np.save(output_path, data_array.astype('float32'))
 
     return data_array
 
 
 def downsample_and_contrast_equalise_power_transform_zscore(input_path, tof_bool, number_of_bins, output_path):
     for i in range(len(input_path)):
+        print("Getting data {0} of {1}".format(str(i), str(len(input_path))))
+
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         if not tof_bool:
             data_array = np.nanmean(data_array, 3)
@@ -557,7 +593,7 @@ def downsample_and_contrast_equalise_power_transform_zscore(input_path, tof_bool
 
         data_array = scipy.stats.zscore(data_array)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -566,13 +602,13 @@ def power_transform_zscore(input_path, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array = scipy.stats.zscore(data_array)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -581,9 +617,9 @@ def power_transform(input_path, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array_shape = data_array.shape
 
@@ -594,7 +630,7 @@ def power_transform(input_path, output_path):
 
         data_array = np.reshape(data_array, data_array_shape)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -614,15 +650,15 @@ def contrast_equalisation(input_path, number_of_bins, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array = data_array.T
 
         data_array = histogram_equalisation(data_array, number_of_bins)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -631,9 +667,9 @@ def standardise(input_path, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array_shape = data_array.shape
 
@@ -644,7 +680,7 @@ def standardise(input_path, output_path):
 
         data_array = np.reshape(data_array, data_array_shape)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -653,13 +689,13 @@ def zscore(input_path, output_path):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array = scipy.stats.zscore(data_array)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -677,13 +713,13 @@ def normalise(input_path, output_path, new_min, new_max):
     for i in range(len(input_path)):
         try:
             data = scipy.io.loadmat(input_path[i])
-            data_array = data.get(list(data.keys())[3])
+            data_array = data.get(list(data.keys())[3]).astype('float32')
         except:
-            data_array = np.load(input_path[i])
+            data_array = np.load(input_path[i], mmap_mode='c').astype('float32')
 
         data_array = rescale_linear(data_array, new_min, new_max)
 
-        np.save(output_path[i], data_array)
+        np.save(output_path[i], data_array.astype('float32'))
 
     return output_path
 
@@ -695,7 +731,7 @@ def concat_array_list(data):
     for i in range(len(data)):
         temp_list = []
 
-        new_data = np.load(data[i])
+        new_data = np.load(data[i], mmap_mode='c').astype('float32')
 
         for j in range(len(data_list)):
             temp_list.append(data_list[j])
@@ -709,15 +745,15 @@ def concat_array_list(data):
 
     cut_list.pop(0)
 
-    return np.asfarray(data_list), cut_list
+    return np.asfarray(data_list).astype('float32'), cut_list
 
 
 def concat_one_input(x, y, x_output, y_output, cut_list_output):
     x_data, cut_list = concat_array_list(x)
-    np.save(x_output, x_data)
+    np.save(x_output, x_data.astype('float32'))
 
     y_data, cut_list_y = concat_array_list(y)
-    np.save(y_output, y_data)
+    np.save(y_output, y_data.astype('float32'))
 
     np.save(cut_list_output, np.asarray(cut_list).astype(np.int))
 
@@ -725,8 +761,8 @@ def concat_one_input(x, y, x_output, y_output, cut_list_output):
 
 
 def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_list_output, split, window_size):
-    x_data = np.load(x[0])
-    y_data = np.load(y[0])
+    x_data = np.load(x[0], mmap_mode='c').astype('float32')
+    y_data = np.load(y[0], mmap_mode='c').astype('float32')
 
     test_data_index = []
     cut_list = []
@@ -770,10 +806,10 @@ def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_
     x_data = x_data.take(data_index, axis=0)
     y_data = y_data.take(data_index, axis=0)
 
-    np.save(test_x_output, test_x_data)
-    np.save(test_y_output, test_y_data)
-    np.save(x_output, x_data)
-    np.save(y_output, y_data)
+    np.save(test_x_output, test_x_data.astype('float32'))
+    np.save(test_y_output, test_y_data.astype('float32'))
+    np.save(x_output, x_data.astype('float32'))
+    np.save(y_output, y_data.astype('float32'))
 
     partial_data_list = [data_index[0]]
     previous_value = data_index[0]
@@ -791,18 +827,18 @@ def split_one_input(x, y, x_output, y_output, test_x_output, test_y_output, cut_
 
 def main(fit_model_bool, while_bool, load_bool):
     save_bool = True
-    load_full_model_bool = True
-    plot_bool = True
+    load_full_model_bool = False
+    plot_bool = False
     plot_output_bool = False
     apply_bool = False
     passthrough_bool = False
-    single_input_bool = True
+    single_input_bool = False
     static_bool = True
     autoencoder_input_bool = False
     dynamic_bool = True
     tested_input_bool = True
     original_bool = False
-    pca_bool = False
+    pca_bool = True
     conservative_bool = True
     concat_one_input_bool = True
     reload_data = not load_bool
@@ -823,25 +859,29 @@ def main(fit_model_bool, while_bool, load_bool):
 
     output_to_output = 0
 
-    output_path = "./results/"
+    input_path = os.path.abspath("./input")
+    output_path = os.path.abspath("./results/")
     output_prefix = ".csv"
     cv_tracker_path = None
 
     cut_list = []
 
+    if not os.path.exists(input_path):
+        os.makedirs(input_path)
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
     x_path_orig_list, x_path_list, test_x_path_list, y_path_orig_list, test_y_path_list, y_path_list, output_file_name = pca_nn_paths.get_paths(
-        single_input_bool, static_bool, autoencoder_input_bool, dynamic_bool, tested_input_bool, original_bool,
-        pca_bool, conservative_bool)
+        single_input_bool, static_bool, autoencoder_input_bool, dynamic_bool, input_path, output_path,
+        tested_input_bool, original_bool, pca_bool, conservative_bool)
 
     if reload_data and not force_no_reload_bool:
         print("Getting data")
 
         x_path_list = downsample_and_contrast_equalise_power_transform_zscore(x_path_orig_list, tof_bool,
                                                                               number_of_bins, x_path_list)
-        y_path_list = power_transform_zscore(y_path_orig_list, y_path_list)
+        y_path_list = zscore(y_path_orig_list, y_path_list)
 
         print("Got data")
 
@@ -915,9 +955,9 @@ def main(fit_model_bool, while_bool, load_bool):
             temp_test_x_path_list = test_x_path_list
             temp_test_y_path_list = test_y_path_list
 
-            x_output = "x_one_input.npy"
-            y_output = "y_one_input.npy"
-            cut_list_output = "cut_list_input.npy"
+            x_output = "{0}/x_one_input.npy".format(input_path)
+            y_output = "{0}/y_one_input.npy".format(input_path)
+            cut_list_output = "{0}/cut_list_input.npy".format(input_path)
 
             if reload_data and not force_no_reload_bool:
                 concat_one_input(x_path_list, y_path_list, x_output, y_output, cut_list_output)
@@ -925,11 +965,11 @@ def main(fit_model_bool, while_bool, load_bool):
             x_path_list = [x_output]
             y_path_list = [y_output]
 
-            x_output = "split_x_one_input.npy"
-            y_output = "split_y_one_input.npy"
-            test_x_output = "split_test_x_one_input.npy"
-            test_y_output = "split_test_y_one_input.npy"
-            cut_list_output = "split_cut_list_input.npy"
+            x_output = "{0}/split_x_one_input.npy".format(input_path)
+            y_output = "{0}/split_y_one_input.npy".format(input_path)
+            test_x_output = "{0}/split_test_x_one_input.npy".format(input_path)
+            test_y_output = "{0}/split_test_y_one_input.npy".format(input_path)
+            cut_list_output = "{0}/split_cut_list_input.npy".format(input_path)
 
             if reload_data and not force_no_reload_bool:
                 x_path_list, y_path_list, test_x_path_list, test_y_path_list, cut_list = split_one_input(x_path_list,
@@ -942,7 +982,7 @@ def main(fit_model_bool, while_bool, load_bool):
                                                                                                          0.5,
                                                                                                          window_size)
             else:
-                cut_list = np.load(cut_list_output)
+                cut_list = np.load(cut_list_output, mmap_mode='c').astype('float32')
 
             x_path_list = [x_output]
             y_path_list = [y_output]
@@ -959,15 +999,15 @@ def main(fit_model_bool, while_bool, load_bool):
 
         if cv_simple_bool:
             if concat_one_input_bool:
-                x_output = "x_one_input.npy"
-                y_output = "y_one_input.npy"
-                cut_list_output = "cut_list_input.npy"
+                x_output = "{0}/x_one_input.npy".format(input_path)
+                y_output = "{0}/y_one_input.npy".format(input_path)
+                cut_list_output = "{0}/cut_list_input.npy".format(input_path)
 
                 if reload_data and not force_no_reload_bool:
                     x_path_list, y_path_list, cut_list = concat_one_input(x_path_list, y_path_list, x_output, y_output,
                                                                           cut_list_output)
                 else:
-                    cut_list = np.load(cut_list_output)
+                    cut_list = np.load(cut_list_output, mmap_mode='c').astype('float32')
 
                 x_path_list = [x_output]
                 y_path_list = [y_output]
@@ -1008,17 +1048,17 @@ def main(fit_model_bool, while_bool, load_bool):
 
                 print("Path: " + str(i) + "/" + str(path_length))
 
-                data_size = np.load(y_path_list[i]).shape[0]
+                data_size = np.load(y_path_list[i], mmap_mode='c').astype('float32').shape[0]
 
                 test_data_size = None
 
                 if cv_bool:
-                    test_data_size = np.load(test_y_path_list[i]).shape[0]
+                    test_data_size = np.load(test_y_path_list[i], mmap_mode='c').astype('float32').shape[0]
 
                 if tof_bool:
                     ideal_data_window_size = window_size
                 else:
-                    ideal_data_window_size_multiplier = 6
+                    ideal_data_window_size_multiplier = 20
                     ideal_data_window_size = window_size * ideal_data_window_size_multiplier
 
                 if ideal_data_window_size >= data_size:
@@ -1078,7 +1118,12 @@ def main(fit_model_bool, while_bool, load_bool):
                         with open(cv_tracker_path, 'a') as file:
                             file.write("{0}\n".format(str(output)))
 
-                        while_model.save(output_path + "/cv_model_{0}".format(str(cv_index)))
+                        cv_output_path = os.path.abspath(output_path + "/cv_model_{0}/".format(str(cv_index)))
+
+                        if not os.path.exists(cv_output_path):
+                            os.makedirs(cv_output_path)
+
+                        while_model.save(cv_output_path)
 
                         with open(output_path + "/cv_index", "w") as file:
                             file.write(str(cv_index))
@@ -1107,20 +1152,20 @@ def main(fit_model_bool, while_bool, load_bool):
         print("Test model")
         print("Load model from file")
 
-        model = k.models.load_model(output_path + "/model")
+        model = k.models.load_model(os.path.abspath(output_path))
 
         path_length = len(x_path_list)
 
         for i in range(path_length):
             print("Path: " + str(i) + "/" + str(path_length))
 
-            data_array = np.load(test_y_path_list[i])
+            data_array = np.load(test_y_path_list[i], mmap_mode='c')
             data_size = data_array.shape[0]
 
             if tof_bool:
                 ideal_data_window_size = window_size
             else:
-                ideal_data_window_size_multiplier = 6
+                ideal_data_window_size_multiplier = 2
                 ideal_data_window_size = window_size * ideal_data_window_size_multiplier
 
             if ideal_data_window_size >= data_size:
@@ -1184,7 +1229,7 @@ def main(fit_model_bool, while_bool, load_bool):
                 if out_of_bounds_bool:
                     break
 
-            output_array = np.asfarray(output_list)
+            output_array = np.asfarray(output_list).astype('float32')
 
             if flip_bool:
                 flipped = True
@@ -1201,7 +1246,7 @@ def main(fit_model_bool, while_bool, load_bool):
 
                             output_array[i] = output_array[i] * -1
 
-            output = np.nanmean(np.asfarray(output_array), axis=0)
+            output = np.nanmean(np.asfarray(output_array).astype('float32'), axis=0)
 
             with open(output_path + output_file_name[i] + output_prefix, "w") as file:
                 write_to_file(file, output.reshape(output.size, 1))

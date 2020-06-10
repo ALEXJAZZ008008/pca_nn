@@ -128,6 +128,7 @@ training_data/
 
 data/
 
+*results*
 *results/path_start_point
 *results/data_start_point
 *results/lr
